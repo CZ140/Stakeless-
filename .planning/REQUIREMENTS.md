@@ -1,0 +1,218 @@
+# Requirements: Virtual Casino Platform
+
+**Defined:** 2026-02-27
+**Core Value:** Players can jump in daily, claim their bonus, play fair-odds casino games with virtual coins, and compete on leaderboards — no real-money risk.
+
+---
+
+## v1 Requirements
+
+Requirements for initial release. Each maps to roadmap phases.
+
+### Authentication
+
+- [ ] **AUTH-01**: User can register an account with email and password
+- [ ] **AUTH-02**: User can log in and maintain a persistent session across browser refreshes (JWT)
+- [ ] **AUTH-03**: User can log out from any page
+- [ ] **AUTH-04**: User can reset password via email link
+- [ ] **AUTH-05**: User profile stores: balance, total wagered, total profit, total loss, daily bonus timestamp, account creation date, last login date
+
+### Virtual Currency
+
+- [ ] **CURR-01**: New users receive a starting balance sufficient for approximately 50–100 minimum bets
+- [ ] **CURR-02**: User can claim a daily bonus once per 24 hours from the dashboard
+- [ ] **CURR-03**: User's balance is always visible in a persistent header/sidebar on every page
+- [ ] **CURR-04**: User's balance updates after each game round without a page refresh
+
+### Game Infrastructure
+
+- [ ] **GINF-01**: All games deduct the bet amount from the user's balance before play begins
+- [ ] **GINF-02**: All game outcomes are calculated server-side using a cryptographically secure RNG (never client-side)
+- [ ] **GINF-03**: Winnings are credited to the user's balance after the outcome is resolved server-side
+- [ ] **GINF-04**: Every game round logs: UserID, GameType, BetAmount, Outcome, Profit, Timestamp
+- [ ] **GINF-05**: Each game enforces minimum and maximum bet limits; bets outside range are rejected before play
+- [ ] **GINF-06**: Each game shows quick-select bet chips (e.g. 10 / 50 / 100 / 500 / Max) plus Half and Double buttons
+- [ ] **GINF-07**: Each game pre-fills the bet amount with the user's last bet on that game
+- [ ] **GINF-08**: Each game plays a win or loss animation and sound effect after each round outcome; mute toggle state persists across sessions via localStorage
+- [ ] **GINF-09**: Each game has an accessible how-to-play rules panel (modal or collapsible section)
+
+### Blackjack
+
+- [ ] **BJK-01**: User can play Blackjack single-player vs a dealer AI
+- [ ] **BJK-02**: User can Hit, Stand, or Double Down during their turn
+- [ ] **BJK-03**: Game uses a standard 52-card deck; dealer stands on soft 17
+- [ ] **BJK-04**: Cards are animated on deal; hand totals are displayed for player and dealer
+
+### Roulette
+
+- [ ] **ROUL-01**: User can play European Roulette (single zero, 37 pockets)
+- [ ] **ROUL-02**: User can place Red/Black bets
+- [ ] **ROUL-03**: User can place Odd/Even bets
+- [ ] **ROUL-04**: User can place straight-up single number bets
+- [ ] **ROUL-05**: User can place Dozens bets (1–12, 13–24, 25–36)
+- [ ] **ROUL-06**: User can place Columns bets
+- [ ] **ROUL-07**: Animated wheel spin reveals the result; ball decelerates realistically before stopping
+
+### Plinko
+
+- [ ] **PLNK-01**: User can select a bet amount, risk level (Low / Medium / High), and row count before dropping
+- [ ] **PLNK-02**: Ball animation follows a plausible physical path through pegs to the final slot
+- [ ] **PLNK-03**: Final slot determines the payout multiplier; winnings are applied to the user's balance after animation completes
+
+### Mines
+
+- [ ] **MINE-01**: User can select a bet amount and number of mines before starting a round
+- [ ] **MINE-02**: User clicks tiles; a safe tile reveals a gem and increases the active multiplier; a mine tile ends the round and loses the bet
+- [ ] **MINE-03**: User can cash out at any point during an active round to receive the current multiplier payout
+- [ ] **MINE-04**: Cash Out button is visually prominent during an active round and displays the current multiplier value
+- [ ] **MINE-05**: Mine grid state is stored server-side; client sends tile coordinates, server validates and returns outcome
+
+### Leaderboards
+
+- [ ] **LDR-01**: Balance leaderboard displays top users ranked by current balance
+- [ ] **LDR-02**: Total Wagered leaderboard displays top users ranked by lifetime amount wagered
+- [ ] **LDR-03**: Profit leaderboard displays top users ranked by total profit
+- [ ] **LDR-04**: All leaderboards update in real-time via WebSocket push
+- [ ] **LDR-05**: Each leaderboard shows the logged-in user's own rank even when they are not in the top 10
+
+### Player Profile
+
+- [ ] **PROF-01**: Each user has a profile page displaying: username, current balance, leaderboard rank, total wagered, total profit, and total games played
+- [ ] **PROF-02**: Profile page displays a balance over time chart
+- [ ] **PROF-03**: Profile page displays a wagered per day chart
+
+### Admin Panel
+
+- [ ] **ADMIN-01**: Admin login is restricted to accounts with the admin role; role is verified against the database on every admin request (not trusted from JWT payload alone)
+- [ ] **ADMIN-02**: Admin dashboard displays: total registered users, total bets placed, total coins in circulation, most active users
+- [ ] **ADMIN-03**: Admin can search for a player by username and view their balance and game/wager history
+- [ ] **ADMIN-04**: Admin can ban a player account (immediately invalidates their active sessions)
+- [ ] **ADMIN-05**: All admin actions are recorded in an audit log (AdminID, Action, TargetUserID, Timestamp)
+
+### Anti-Cheat
+
+- [ ] **ANTI-01**: Rate limiting is applied to all game bet endpoints and API routes
+- [ ] **ANTI-02**: All bet amounts, game parameters, and outcomes are validated server-side before any balance change occurs
+- [ ] **ANTI-03**: Click interval checks detect and reject requests at inhuman speed (anti-automation)
+
+---
+
+## v2 Requirements
+
+Deferred to a future release. Tracked but not in current roadmap.
+
+### Games
+
+- **GAME-V2-01**: Slots game with multiple reels, symbols, and a paytable
+- **GAME-V2-02**: CS:GO-style Case Spinner with tiered rarity drops (Common → Legendary) and coin-value conversion
+- **GAME-V2-03**: Poker — Texas Hold'em with real-time multiplayer tables and optional bot fill
+- **GAME-V2-04**: Blackjack split action
+
+### Progression
+
+- **PROG-V2-01**: Clicker system — clicks generate coins; upgrades increase coins-per-click and auto-click speed with exponential upgrade costs
+- **PROG-V2-02**: Progressive daily bonus streak — escalating rewards per consecutive day claimed; missed day resets streak
+- **PROG-V2-03**: Clicker leaderboard ranked by total clicks
+
+### Admin
+
+- **ADMIN-V2-01**: Admin can configure game RTP override per game (e.g. Slots default 96%, override to custom %)
+- **ADMIN-V2-02**: Admin can set per-player win multiplier (0.8 = worse odds, 1.2 = better odds)
+- **ADMIN-V2-03**: Admin can adjust a player's balance by a specific amount (+/-)
+
+### History & Social
+
+- **HIST-V2-01**: Bet history UI showing last 50 rounds per game on player profile
+- **SOCL-V2-01**: Chat system (requires moderation infrastructure)
+- **SOCL-V2-02**: Friend system and private tables
+
+---
+
+## Out of Scope
+
+Explicitly excluded. Documented to prevent scope creep.
+
+| Feature | Reason |
+|---------|--------|
+| Real money, deposits, withdrawals | By design — platform is virtual currency only, never real financial value |
+| Cryptocurrency | Explicitly excluded from project goals |
+| Payment processors | No real-money component exists |
+| Autoplay / auto-bet | Anti-feature: disengages players from the interactive loop; research shows +7–9% betting activity increase with associated harms |
+| Marketplace / item trading | No currency purchasing is allowed; inventory system adds complexity with no v1 value |
+| Provably fair RNG display | Trust differentiator for v2+ once credibility matters; not critical for v1 |
+| Mobile app | Web-first; responsive design covers mobile browser access |
+| Cosmetic marketplace | Requires monetization model decision; deferred indefinitely |
+| Push/email re-engagement | Disproportionate infrastructure for v1 (password reset email is included) |
+| Tournaments / seasonal resets | Requires time-bounded leaderboard infrastructure; v2+ |
+| VIP tier system | Premature with unvalidated player base; leaderboard rank serves as social status for v1 |
+
+---
+
+## Traceability
+
+Which phases cover which requirements. Updated during roadmap creation.
+
+| Requirement | Phase | Status |
+|-------------|-------|--------|
+| AUTH-01 | — | Pending |
+| AUTH-02 | — | Pending |
+| AUTH-03 | — | Pending |
+| AUTH-04 | — | Pending |
+| AUTH-05 | — | Pending |
+| CURR-01 | — | Pending |
+| CURR-02 | — | Pending |
+| CURR-03 | — | Pending |
+| CURR-04 | — | Pending |
+| GINF-01 | — | Pending |
+| GINF-02 | — | Pending |
+| GINF-03 | — | Pending |
+| GINF-04 | — | Pending |
+| GINF-05 | — | Pending |
+| GINF-06 | — | Pending |
+| GINF-07 | — | Pending |
+| GINF-08 | — | Pending |
+| GINF-09 | — | Pending |
+| BJK-01 | — | Pending |
+| BJK-02 | — | Pending |
+| BJK-03 | — | Pending |
+| BJK-04 | — | Pending |
+| ROUL-01 | — | Pending |
+| ROUL-02 | — | Pending |
+| ROUL-03 | — | Pending |
+| ROUL-04 | — | Pending |
+| ROUL-05 | — | Pending |
+| ROUL-06 | — | Pending |
+| ROUL-07 | — | Pending |
+| PLNK-01 | — | Pending |
+| PLNK-02 | — | Pending |
+| PLNK-03 | — | Pending |
+| MINE-01 | — | Pending |
+| MINE-02 | — | Pending |
+| MINE-03 | — | Pending |
+| MINE-04 | — | Pending |
+| MINE-05 | — | Pending |
+| LDR-01 | — | Pending |
+| LDR-02 | — | Pending |
+| LDR-03 | — | Pending |
+| LDR-04 | — | Pending |
+| LDR-05 | — | Pending |
+| PROF-01 | — | Pending |
+| PROF-02 | — | Pending |
+| PROF-03 | — | Pending |
+| ADMIN-01 | — | Pending |
+| ADMIN-02 | — | Pending |
+| ADMIN-03 | — | Pending |
+| ADMIN-04 | — | Pending |
+| ADMIN-05 | — | Pending |
+| ANTI-01 | — | Pending |
+| ANTI-02 | — | Pending |
+| ANTI-03 | — | Pending |
+
+**Coverage:**
+- v1 requirements: 52 total
+- Mapped to phases: 0 (pending roadmap)
+- Unmapped: 52 ⚠️
+
+---
+*Requirements defined: 2026-02-27*
+*Last updated: 2026-02-27 after initial definition*
