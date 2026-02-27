@@ -32,12 +32,12 @@ Decimal phases appear between their surrounding integers in numeric order.
   2. PostgreSQL database is reachable, Drizzle migrations run cleanly, and all tables (users, game_logs, game_sessions, daily_bonus_claims, admin_logs) exist with correct column types (balance as BIGINT, never FLOAT)
   3. Environment config (.env) loads and the app rejects startup if required variables are missing
   4. TypeScript compiles without errors across both frontend and backend packages
-**Plans**: TBD
+**Plans**: 3 plans
 
 Plans:
-- [ ] 01-01: Monorepo setup, TypeScript config, package structure
-- [ ] 01-02: PostgreSQL schema, Drizzle ORM setup, and migrations
-- [ ] 01-03: Express app skeleton (CORS, helmet, body parsing, pg pool) and React/Vite frontend scaffold
+- [ ] 01-01-PLAN.md — pnpm workspace skeleton, tsconfig.base.json, all package scaffolds, @gambling/shared types
+- [ ] 01-02-PLAN.md — Docker Compose (postgres), Drizzle schema (5 tables, BIGINT balance), migrations
+- [ ] 01-03-PLAN.md — Express skeleton (helmet, cors, health route), React/Vite scaffold, Vite proxy, pnpm dev smoke test
 
 ### Phase 2: Auth & Accounts
 **Goal**: Users can securely create accounts, log in, maintain sessions across browser refreshes, and recover access — all user data is owned and protected
