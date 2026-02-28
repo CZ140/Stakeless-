@@ -12,7 +12,7 @@ Eight phases build the platform from the ground up, following a hard-constrained
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 1: Foundation** - Project scaffold, PostgreSQL schema, Express skeleton, React scaffold — the base everything else sits on
+- [x] **Phase 1: Foundation** - Project scaffold, PostgreSQL schema, Express skeleton, React scaffold — the base everything else sits on
 - [ ] **Phase 2: Auth & Accounts** - User registration, login, sessions, password reset, and profile data model
 - [ ] **Phase 3: Wallet & Currency** - Virtual coin system, starting balance, daily bonus, and atomic bet transaction pipeline
 - [ ] **Phase 4: Game Infrastructure & Roulette** - Server-side RNG pattern, bet validation, game logging, and the first complete game (Roulette) end-to-end
@@ -35,9 +35,9 @@ Decimal phases appear between their surrounding integers in numeric order.
 **Plans**: 3 plans
 
 Plans:
-- [ ] 01-01-PLAN.md — pnpm workspace skeleton, tsconfig.base.json, all package scaffolds, @gambling/shared types
-- [ ] 01-02-PLAN.md — Docker Compose (postgres), Drizzle schema (5 tables, BIGINT balance), migrations
-- [ ] 01-03-PLAN.md — Express skeleton (helmet, cors, health route), React/Vite scaffold, Vite proxy, pnpm dev smoke test
+- [x] 01-01-PLAN.md — pnpm workspace skeleton, tsconfig.base.json, all package scaffolds, @gambling/shared types
+- [x] 01-02-PLAN.md — Docker Compose (postgres), Drizzle schema (5 tables, BIGINT balance), migrations
+- [x] 01-03-PLAN.md — Express skeleton (helmet, cors, health route), React/Vite scaffold, Vite proxy, pnpm dev smoke test
 
 ### Phase 2: Auth & Accounts
 **Goal**: Users can securely create accounts, log in, maintain sessions across browser refreshes, and recover access — all user data is owned and protected
@@ -161,7 +161,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Foundation | 1/3 | In Progress|  |
+| 1. Foundation | 3/3 | Complete | 2026-02-28 |
 | 2. Auth & Accounts | 0/3 | Not started | - |
 | 3. Wallet & Currency | 0/3 | Not started | - |
 | 4. Game Infrastructure & Roulette | 0/3 | Not started | - |
