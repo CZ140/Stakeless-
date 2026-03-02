@@ -14,7 +14,8 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Foundation** - Project scaffold, PostgreSQL schema, Express skeleton, React scaffold — the base everything else sits on
 - [x] **Phase 2: Auth & Accounts** - User registration, login, sessions, password reset, and profile data model
-- [ ] **Phase 3: Wallet & Currency** - Virtual coin system, starting balance, daily bonus, and atomic bet transaction pipeline
+- [x] **Phase 3: Wallet & Currency** - Virtual coin system, starting balance, daily bonus, and atomic bet transaction pipeline
+- [ ] **Phase 3.1: Auth UI Gap Closure** *(INSERTED — gap closure)* - Add logout button to Header and fix session-expired redirect to close the AUTH-03 integration gap
 - [ ] **Phase 4: Game Infrastructure & Roulette** - Server-side RNG pattern, bet validation, game logging, and the first complete game (Roulette) end-to-end
 - [ ] **Phase 5: Remaining Games** - Plinko (stateless), Mines (session state), and Blackjack (multi-step session) in complexity order
 - [ ] **Phase 6: Leaderboards & Real-Time** - WebSocket server, balance push, and all three live leaderboard dimensions
@@ -72,6 +73,17 @@ Plans:
 - [ ] 03-01-PLAN.md — WalletService (SELECT FOR UPDATE atomicity), claimDailyBonus, settleBet/deductBet, starting balance on registration
 - [ ] 03-02-PLAN.md — Zustand balance store, AuthContext wiring, Header with animated BalanceDisplay, DailyBonusCard, DashboardPage
 - [ ] 03-03-PLAN.md — validateBet middleware, POST /api/wallet/bet coin-flip pipeline (GINF-01..05), BetRequest/BetResponse shared types
+
+### Phase 3.1: Auth UI Gap Closure *(INSERTED — gap closure)*
+**Goal:** Surface logout to users and make the session-expired banner reachable — closes the only remaining v1.0 milestone blocker
+**Depends on:** Phase 3
+**Requirements:** AUTH-03
+**Gap Closure:** Closes gaps from v1.0 MILESTONE-AUDIT.md
+
+Plans:
+- [ ] 03.1-01-PLAN.md — Add logout button to `Header.tsx`; fix `ProtectedRoute.tsx` session-expired redirect
+
+---
 
 ### Phase 4: Game Infrastructure & Roulette
 **Goal**: The full game resolution pipeline is proven end-to-end with Roulette — a player places a bet, the server resolves it with cryptographic RNG, the balance updates, the round is logged, and the animated wheel reveals the result
@@ -163,7 +175,8 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8
 |-------|----------------|--------|-----------|
 | 1. Foundation | 3/3 | Complete   | 2026-02-28 |
 | 2. Auth & Accounts | 3/3 | Complete   | 2026-03-02 |
-| 3. Wallet & Currency | 2/3 | In Progress|  |
+| 3. Wallet & Currency | 3/3 | Complete   | 2026-03-02 |
+| 3.1. Auth UI Gap Closure | 0/1 | Not started | - |
 | 4. Game Infrastructure & Roulette | 0/3 | Not started | - |
 | 5. Remaining Games | 0/3 | Not started | - |
 | 6. Leaderboards & Real-Time | 0/2 | Not started | - |
