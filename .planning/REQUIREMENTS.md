@@ -12,10 +12,10 @@ Requirements for initial release. Each maps to roadmap phases.
 ### Authentication
 
 - [x] **AUTH-01**: User can register an account with email and password
-- [ ] **AUTH-02**: User can log in and maintain a persistent session across browser refreshes (JWT)
+- [x] **AUTH-02**: User can log in and maintain a persistent session across browser refreshes (JWT)
 - [ ] **AUTH-03**: User can log out from any page
 - [ ] **AUTH-04**: User can reset password via email link
-- [ ] **AUTH-05**: User profile stores: balance, total wagered, total profit, total loss, daily bonus timestamp, account creation date, last login date
+- [x] **AUTH-05**: User profile stores: balance, total wagered, total profit, total loss, daily bonus timestamp, account creation date, last login date
 
 ### Virtual Currency
 
@@ -155,10 +155,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | Requirement | Phase | Status |
 |-------------|-------|--------|
 | AUTH-01 | Phase 2 | Complete |
-| AUTH-02 | Phase 2 | Pending |
+| AUTH-02 | Phase 2 | Complete |
 | AUTH-03 | Phase 2 | Pending |
 | AUTH-04 | Phase 2 | Pending |
-| AUTH-05 | Phase 2 | Pending |
+| AUTH-05 | Phase 2 | Complete |
 | CURR-01 | Phase 3 | Pending |
 | CURR-02 | Phase 3 | Pending |
 | CURR-03 | Phase 3 | Pending |

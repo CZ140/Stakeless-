@@ -3,12 +3,12 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: unknown
-last_updated: "2026-03-02T04:36:00.000Z"
+last_updated: "2026-03-02T04:44:00.000Z"
 progress:
   total_phases: 8
   completed_phases: 1
   total_plans: 12
-  completed_plans: 4
+  completed_plans: 5
 ---
 
 # Project State
@@ -23,28 +23,29 @@ See: .planning/PROJECT.md (updated 2026-02-27)
 ## Current Position
 
 Phase: 2 of 8 (Auth & Accounts)
-Plan: 1 of 3 in current phase (IN PROGRESS — 02-01 complete)
-Status: Phase 2 executing — 02-01 complete, 02-02 and 02-03 ready
-Last activity: 2026-03-02 — Completed 02-01: auth infrastructure (schema, token/email/auth services, register + verify-email endpoints)
+Plan: 2 of 3 in current phase (IN PROGRESS — 02-01 and 02-02 complete)
+Status: Phase 2 executing — 02-01 complete, 02-02 complete, 02-03 ready
+Last activity: 2026-03-02 — Completed 02-02: login/refresh/me endpoints, requireAuth middleware
 
-Progress: [███░░░░░░░] 33%
+Progress: [████░░░░░░] 42%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 3
+- Total plans completed: 5
 - Average duration: 4 min
-- Total execution time: 0.12 hours
+- Total execution time: 0.19 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 01-foundation | 3 | 11 min | 4 min |
+| 02-auth-accounts | 2 | 7 min | 4 min |
 
 **Recent Trend:**
-- Last 5 plans: 4 min, 4 min, 3 min
-- Trend: —
+- Last 5 plans: 4 min, 4 min, 3 min, 3 min, 4 min
+- Trend: stable
 
 *Updated after each plan completion*
 
@@ -54,6 +55,7 @@ Progress: [███░░░░░░░] 33%
 | Phase 01-foundation P02 | 22 min | 2 tasks | 7 files |
 | Phase 01-foundation P03 | 3 min | 2 tasks | 10 files |
 | Phase 02-auth-accounts P01 | 3 min | 2 tasks | 11 files |
+| Phase 02-auth-accounts P02 | 4 min | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -80,6 +82,9 @@ Recent decisions affecting current work:
 - [Phase 02-auth-accounts P01]: bcrypt timing-attack prevention: hash a dummy string before throwing DUPLICATE_EMAIL to equalize response times
 - [Phase 02-auth-accounts P01]: Store only SHA-256 hash of opaque tokens in DB — raw 64-hex-char token never persisted
 - [Phase 02-auth-accounts P01]: email_verification_tokens.used_at marks single-use enforcement — row kept for audit trail, not deleted on use
+- [Phase 02-auth-accounts P02]: requireAuth returns generic 401 for both missing and invalid/expired tokens — no distinction to prevent information leakage
+- [Phase 02-auth-accounts P02]: Refresh cookie path scoped to /api/auth/refresh — browser only sends cookie to that single path
+- [Phase 02-auth-accounts P02]: isBanned checked after password validation — prevents enumeration of banned accounts via different error response
 
 ### Pending Todos
 
@@ -96,5 +101,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-03-02
-Stopped at: Completed 02-01-PLAN.md (auth infrastructure: schema, services, routes)
+Stopped at: Completed 02-02-PLAN.md (login/refresh/me endpoints, requireAuth middleware)
 Resume file: None
