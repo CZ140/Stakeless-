@@ -27,10 +27,10 @@ Requirements for initial release. Each maps to roadmap phases.
 ### Game Infrastructure
 
 - [x] **GINF-01**: All games deduct the bet amount from the user's balance before play begins
-- [ ] **GINF-02**: All game outcomes are calculated server-side using a cryptographically secure RNG (never client-side)
+- [x] **GINF-02**: All game outcomes are calculated server-side using a cryptographically secure RNG (never client-side)
 - [x] **GINF-03**: Winnings are credited to the user's balance after the outcome is resolved server-side
-- [ ] **GINF-04**: Every game round logs: UserID, GameType, BetAmount, Outcome, Profit, Timestamp
-- [ ] **GINF-05**: Each game enforces minimum and maximum bet limits; bets outside range are rejected before play
+- [x] **GINF-04**: Every game round logs: UserID, GameType, BetAmount, Outcome, Profit, Timestamp
+- [x] **GINF-05**: Each game enforces minimum and maximum bet limits; bets outside range are rejected before play
 - [ ] **GINF-06**: Each game shows quick-select bet chips (e.g. 10 / 50 / 100 / 500 / Max) plus Half and Double buttons
 - [ ] **GINF-07**: Each game pre-fills the bet amount with the user's last bet on that game
 - [ ] **GINF-08**: Each game plays a win or loss animation and sound effect after each round outcome; mute toggle state persists across sessions via localStorage
@@ -164,10 +164,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | CURR-03 | Phase 3 | Pending |
 | CURR-04 | Phase 3 | Pending |
 | GINF-01 | Phase 3 | Complete |
-| GINF-02 | Phase 3 | Pending |
+| GINF-02 | Phase 3 | Complete |
 | GINF-03 | Phase 3 | Complete |
-| GINF-04 | Phase 3 | Pending |
-| GINF-05 | Phase 3 | Pending |
+| GINF-04 | Phase 3 | Complete |
+| GINF-05 | Phase 3 | Complete |
 | GINF-06 | Phase 4 | Pending |
 | GINF-07 | Phase 4 | Pending |
 | GINF-08 | Phase 4 | Pending |

@@ -3,12 +3,12 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: unknown
-last_updated: "2026-03-02T17:05:46.030Z"
+last_updated: "2026-03-02T17:09:29.433Z"
 progress:
   total_phases: 3
   completed_phases: 2
   total_plans: 9
-  completed_plans: 7
+  completed_plans: 8
 ---
 
 # Project State
@@ -23,11 +23,11 @@ See: .planning/PROJECT.md (updated 2026-02-27)
 ## Current Position
 
 Phase: 3 of 8 (Wallet & Transactions) — IN PROGRESS
-Plan: 1 of 3 complete (Phase 3 in progress)
-Status: Phase 3 Plan 1 complete — WalletService foundation built
-Last activity: 2026-03-02 — Completed 03-01: WalletService deductBet/settleBet/claimDailyBonus + wallet router + 1000-coin starting balance
+Plan: 3 of 3 complete (Phase 3 complete)
+Status: Phase 3 Plan 3 complete — Bet pipeline (POST /api/wallet/bet + validateBet + BetRequest/BetResponse)
+Last activity: 2026-03-02 — Completed 03-03: validateBet middleware, POST /api/wallet/bet coin-flip endpoint, shared BetRequest/BetResponse types
 
-Progress: [█████░░░░░] 50%
+Progress: [███████░░░] 62%
 
 ## Performance Metrics
 
@@ -58,6 +58,7 @@ Progress: [█████░░░░░] 50%
 | Phase 02-auth-accounts P02 | 4 min | 2 tasks | 3 files |
 | Phase 02-auth-accounts P03 | 2 min | 2 tasks | 12 files |
 | Phase 03-wallet-currency P01 | 2 | 2 tasks | 5 files |
+| Phase 03-wallet-currency P03 | 1 | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -95,6 +96,8 @@ Recent decisions affecting current work:
 - [Phase 03-wallet-currency]: All balance mutations use db.transaction() + .select().for('update') — single choke-point for all game engine phases (3-8)
 - [Phase 03-wallet-currency]: Aggregate columns use sql template expressions — avoids lost-update anomalies from JS read-modify-write
 - [Phase 03-wallet-currency]: No noWait/skipLocked on .for() calls — Drizzle ORM bug #3554 makes these options unreliable
+- [Phase 03-wallet-currency]: crypto.randomInt(0,2) used for game outcome — Math.random() never in game resolution code (GINF-02)
+- [Phase 03-wallet-currency]: deductBet and settleBet remain separate transactions — Phase 4/5 stateful games need them decoupled
 
 ### Pending Todos
 
@@ -111,5 +114,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-03-02
-Stopped at: Completed 03-01-PLAN.md (WalletService foundation: deductBet/settleBet/claimDailyBonus + wallet router + 1000-coin starting balance)
+Stopped at: Completed 03-03-PLAN.md (POST /api/wallet/bet coin-flip + validateBet middleware + BetRequest/BetResponse shared types)
 Resume file: None
