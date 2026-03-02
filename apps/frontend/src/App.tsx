@@ -4,19 +4,8 @@ import { RegisterPage } from './pages/RegisterPage';
 import { ForgotPasswordPage } from './pages/ForgotPasswordPage';
 import { ResetPasswordPage } from './pages/ResetPasswordPage';
 import { VerifyEmailPage } from './pages/VerifyEmailPage';
+import { DashboardPage } from './pages/DashboardPage';
 import { ProtectedRoute } from './components/ProtectedRoute';
-import { useAuth } from './contexts/AuthContext';
-
-function HomePage() {
-  const { signOut } = useAuth();
-  return (
-    <div style={{ maxWidth: 600, margin: '80px auto', padding: '0 16px' }}>
-      <h1>Virtual Casino</h1>
-      <p>You are logged in.</p>
-      <button onClick={signOut}>Sign out</button>
-    </div>
-  );
-}
 
 export default function App() {
   return (
@@ -30,7 +19,15 @@ export default function App() {
         path="/"
         element={
           <ProtectedRoute>
-            <HomePage />
+            <DashboardPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/dashboard"
+        element={
+          <ProtectedRoute>
+            <DashboardPage />
           </ProtectedRoute>
         }
       />

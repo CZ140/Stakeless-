@@ -1,0 +1,31 @@
+import { Link } from 'react-router-dom';
+import { BalanceDisplay } from './BalanceDisplay';
+
+export function Header() {
+  return (
+    <header
+      style={{
+        position: 'sticky',
+        top: 0,
+        zIndex: 100,
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        padding: '12px 24px',
+        backgroundColor: '#1a1a2e',
+        color: '#ffffff',
+        boxShadow: '0 2px 8px rgba(0,0,0,0.4)',
+      }}
+    >
+      <Link
+        to="/dashboard"
+        style={{ color: '#e0d7ff', textDecoration: 'none', fontSize: '1.25rem', fontWeight: 700 }}
+      >
+        Virtual Casino
+      </Link>
+      <Link to="/profile" style={{ textDecoration: 'none', color: 'inherit' }}>
+        <BalanceDisplay />
+      </Link>
+    </header>
+  );
+}
