@@ -1,7 +1,10 @@
 import { Link } from 'react-router-dom';
 import { BalanceDisplay } from './BalanceDisplay';
+import { useAuth } from '../contexts/AuthContext';
 
 export function Header() {
+  const { signOut } = useAuth();
+
   return (
     <header
       style={{
@@ -23,9 +26,25 @@ export function Header() {
       >
         Virtual Casino
       </Link>
-      <Link to="/profile" style={{ textDecoration: 'none', color: 'inherit' }}>
-        <BalanceDisplay />
-      </Link>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+        <Link to="/profile" style={{ textDecoration: 'none', color: 'inherit' }}>
+          <BalanceDisplay />
+        </Link>
+        <button
+          onClick={() => void signOut()}
+          style={{
+            background: 'none',
+            border: '1px solid rgba(255,255,255,0.3)',
+            color: '#ffffff',
+            cursor: 'pointer',
+            padding: '6px 14px',
+            borderRadius: '4px',
+            fontSize: '0.875rem',
+          }}
+        >
+          Sign Out
+        </button>
+      </div>
     </header>
   );
 }
