@@ -3,7 +3,7 @@ import { eq, and, isNull, gt } from 'drizzle-orm';
 import { db } from '../db/index.js';
 import { users, emailVerificationTokens, refreshTokens } from '../db/schema.js';
 import { generateOpaqueToken, hashToken, signAccessToken } from './tokenService.js';
-import { sendVerificationEmail } from './emailService.js';
+import { sendVerificationEmail, sendPasswordResetEmail } from './emailService.js';
 import { env } from '../env.js';
 
 // Derive a unique username from email prefix + random suffix.
@@ -195,4 +195,95 @@ export async function getProfile(userId: number) {
     createdAt: user.createdAt.toISOString(),
     lastLoginAt: user.lastLoginAt?.toISOString() ?? null,
   };
+}
+
+export async function logout(rawRefreshToken: string): Promise<void> {
+  const tokenHash = hashToken(rawRefreshToken);
+  await db.delete(refreshTokens).where(eq(refreshTokens.tokenHash, tokenHash));
+  // No error if not found — idempotent logout
+}
+
+export async function forgotPassword(email: string): Promise<void> {
+  const [user] = await db.select({ id: users.id }).from(users)
+    .where(eq(users.email, email.toLowerCase()))
+    .limit(1);
+
+  // Always return without error regardless of whether email exists — no enumeration
+  if (!user) return;
+
+  // Invalidate any existing password_reset token for this user
+  await db.delete(emailVerificationTokens).where(
+    and(
+      eq(emailVerificationTokens.userId, user.id),
+      eq(emailVerificationTokens.type, 'password_reset'),
+    )
+  );
+
+  // Issue new reset token
+  const rawToken = generateOpaqueToken();
+  const tokenHash = hashToken(rawToken);
+  const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+
+  await db.insert(emailVerificationTokens).values({
+    userId: user.id,
+    tokenHash,
+    type: 'password_reset',
+    expiresAt,
+  });
+
+  const resetUrl = `${env.FRONTEND_URL}/reset-password?token=${rawToken}`;
+  await sendPasswordResetEmail(email, resetUrl);
+}
+
+export async function resetPassword(
+  rawToken: string,
+  newPassword: string,
+): Promise<{ accessToken: string; rawRefreshToken: string }> {
+  const tokenHash = hashToken(rawToken);
+
+  const [record] = await db.select().from(emailVerificationTokens)
+    .where(
+      and(
+        eq(emailVerificationTokens.tokenHash, tokenHash),
+        eq(emailVerificationTokens.type, 'password_reset'),
+        isNull(emailVerificationTokens.usedAt),
+      )
+    )
+    .limit(1);
+
+  if (!record || record.expiresAt < new Date()) {
+    throw Object.assign(new Error('Invalid or expired reset link'), { code: 'INVALID_TOKEN' });
+  }
+
+  // Hash new password
+  const passwordHash = await bcrypt.hash(newPassword, 12);
+
+  // Update user's password
+  await db.update(users)
+    .set({ passwordHash })
+    .where(eq(users.id, record.userId));
+
+  // Mark token used (single-use; replayed attempts get 400)
+  await db.update(emailVerificationTokens)
+    .set({ usedAt: new Date() })
+    .where(eq(emailVerificationTokens.id, record.id));
+
+  // Auto-login: issue fresh access + refresh tokens
+  const accessToken = await signAccessToken(record.userId);
+  const newRawRefreshToken = generateOpaqueToken();
+  const refreshHash = hashToken(newRawRefreshToken);
+  const refreshExpiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+
+  await db.insert(refreshTokens).values({
+    userId: record.userId,
+    tokenHash: refreshHash,
+    expiresAt: refreshExpiresAt,
+  });
+
+  // Update lastLoginAt
+  await db.update(users)
+    .set({ lastLoginAt: new Date() })
+    .where(eq(users.id, record.userId));
+
+  return { accessToken, rawRefreshToken: newRawRefreshToken };
 }

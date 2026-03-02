@@ -2,7 +2,7 @@ import { Router, type IRouter } from 'express';
 import { z } from 'zod';
 import { validate } from '../middleware/validate.js';
 import { authLimiter } from '../middleware/rateLimiter.js';
-import { register, verifyEmail, login, refreshToken, getProfile } from '../services/authService.js';
+import { register, verifyEmail, login, refreshToken, getProfile, logout, forgotPassword, resetPassword } from '../services/authService.js';
 import { requireAuth } from '../middleware/requireAuth.js';
 import { env } from '../env.js';
 
@@ -135,6 +135,67 @@ authRouter.get('/me', requireAuth, async (req, res) => {
       return;
     }
     console.error('[auth] me error:', err);
+    res.status(500).json({ error: 'An unexpected error occurred' });
+  }
+});
+
+const forgotPasswordSchema = z.object({
+  email: z.string().email(),
+});
+
+const resetPasswordSchema = z.object({
+  token: z.string().min(1),
+  password: z.string().min(8, 'Password must be at least 8 characters'),
+});
+
+// POST /api/auth/logout
+// Requires the refresh cookie to identify which token to revoke
+authRouter.post('/logout', async (req, res) => {
+  const rawToken: string | undefined = req.cookies['refreshToken'];
+  if (rawToken) {
+    await logout(rawToken).catch(() => { /* idempotent — ignore if already gone */ });
+  }
+  res.clearCookie('refreshToken', { path: '/api/auth/refresh' });
+  res.json({ message: 'Logged out' });
+});
+
+// POST /api/auth/forgot-password
+authRouter.post('/forgot-password', authLimiter, validate(forgotPasswordSchema), async (req, res) => {
+  try {
+    await forgotPassword(req.body.email as string);
+    // Always 200 — no email enumeration
+    res.json({ message: 'If this email is registered, you will receive a password reset link.' });
+  } catch (err) {
+    console.error('[auth] forgot-password error:', err);
+    res.status(500).json({ error: 'An unexpected error occurred' });
+  }
+});
+
+// POST /api/auth/reset-password
+// Body: { token: string, password: string }
+authRouter.post('/reset-password', validate(resetPasswordSchema), async (req, res) => {
+  try {
+    const { accessToken, rawRefreshToken } = await resetPassword(
+      req.body.token as string,
+      req.body.password as string,
+    );
+
+    // Set refresh cookie (auto-login after reset)
+    res.cookie('refreshToken', rawRefreshToken, {
+      httpOnly: true,
+      secure: env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      path: '/api/auth/refresh',
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+    });
+
+    res.json({ accessToken });
+  } catch (err: unknown) {
+    if ((err as { code?: string }).code === 'INVALID_TOKEN') {
+      res.status(400).json({ error: 'Invalid or expired reset link' });
+      return;
+    }
+    console.error('[auth] reset-password error:', err);
     res.status(500).json({ error: 'An unexpected error occurred' });
   }
 });
