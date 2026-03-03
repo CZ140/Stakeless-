@@ -112,12 +112,14 @@ Plans:
   3. Mines grid state is stored server-side — the client sends tile coordinates only and cannot fabricate an outcome
   4. A user can play Blackjack: the dealer AI follows standard rules (stands on soft 17); the user can Hit, Stand, or Double Down; cards animate on deal; hand totals display for both player and dealer
   5. All three games inherit the shared bet panel (quick-select chips, Half, Double, last-bet prefill), win/loss animations, sound system, and how-to-play panel from Phase 4 infrastructure
-**Plans**: TBD
+**Plans**: 5 plans
 
 Plans:
-- [ ] 05-01: Plinko engine (stateless, risk/rows → bucket), POST /api/games/plinko/bet, Plinko React UI with ball physics animation
-- [ ] 05-02: Mines engine, game_sessions table integration, POST /api/games/mines/start + /tile + /cashout, Mines React UI
-- [ ] 05-03: Blackjack engine (deal → player turn → dealer turn), multi-step session routes, Blackjack React UI with card animations
+- [ ] 05-01-PLAN.md — Plinko backend (plinkoService + POST /api/games/plinko/bet) + full Plinko React UI (plinkoStore, PlinkoPage, board SVG, ball animation)
+- [ ] 05-02-PLAN.md — Mines backend (minesService + 4 routes: start/tile/cashout/active-session)
+- [ ] 05-03-PLAN.md — Mines frontend (minesStore, MinesPage with 5x5 grid and prominent Cash Out button)
+- [ ] 05-04-PLAN.md — Blackjack backend (blackjackService + 5 routes: deal/hit/stand/double/active-session)
+- [ ] 05-05-PLAN.md — Blackjack frontend (blackjackStore, BlackjackCard component, BlackjackPage with card animations)
 
 ### Phase 6: Leaderboards & Real-Time
 **Goal**: All three leaderboards update live via WebSocket push — players see themselves ranked and watch standings change in real time without refreshing
@@ -178,7 +180,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8
 | 3. Wallet & Currency | 3/3 | Complete   | 2026-03-02 |
 | 3.1. Auth UI Gap Closure | 1/1 | Complete   | 2026-03-02 |
 | 4. Game Infrastructure & Roulette | 3/3 | Complete   | 2026-03-03 |
-| 5. Remaining Games | 0/3 | Not started | - |
+| 5. Remaining Games | 0/5 | Not started | - |
 | 6. Leaderboards & Real-Time | 0/2 | Not started | - |
 | 7. Player Profile | 0/2 | Not started | - |
 | 8. Admin & Anti-Cheat | 0/3 | Not started | - |
