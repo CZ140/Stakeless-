@@ -9,7 +9,7 @@ const GAMES = [
   { id: 'roulette',  name: 'Roulette',  icon: '🎡', description: 'European wheel, 37 pockets',    route: '/games/roulette',  available: true  },
   { id: 'plinko',    name: 'Plinko',    icon: '⚫', description: 'Drop the ball, ride the pegs',  route: '/games/plinko',    available: true  },
   { id: 'mines',     name: 'Mines',     icon: '💣', description: 'Avoid the mines, cash out big', route: '/games/mines',     available: true  },
-  { id: 'blackjack', name: 'Blackjack', icon: '🃏', description: 'Beat the dealer to 21',         route: '/games/blackjack', available: false },
+  { id: 'blackjack', name: 'Blackjack', icon: '🃏', description: 'Beat the dealer to 21',         route: '/games/blackjack', available: true  },
 ];
 
 interface MeResponse {

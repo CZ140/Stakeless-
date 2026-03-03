@@ -8,6 +8,7 @@ import { DashboardPage } from './pages/DashboardPage';
 import { RoulettePage } from './pages/RoulettePage';
 import { PlinkoPage } from './pages/PlinkoPage';
 import { MinesPage } from './pages/MinesPage';
+import { BlackjackPage } from './pages/BlackjackPage';
 import { ProtectedRoute } from './components/ProtectedRoute';
 
 export default function App() {
@@ -55,6 +56,14 @@ export default function App() {
         element={
           <ProtectedRoute>
             <MinesPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/games/blackjack"
+        element={
+          <ProtectedRoute>
+            <BlackjackPage />
           </ProtectedRoute>
         }
       />
