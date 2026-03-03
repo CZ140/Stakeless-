@@ -39,9 +39,9 @@ Requirements for initial release. Each maps to roadmap phases.
 ### Blackjack
 
 - [x] **BJK-01**: User can play Blackjack single-player vs a dealer AI
-- [ ] **BJK-02**: User can Hit, Stand, or Double Down during their turn
+- [x] **BJK-02**: User can Hit, Stand, or Double Down during their turn
 - [x] **BJK-03**: Game uses a standard 52-card deck; dealer stands on soft 17
-- [ ] **BJK-04**: Cards are animated on deal; hand totals are displayed for player and dealer
+- [x] **BJK-04**: Cards are animated on deal; hand totals are displayed for player and dealer
 
 ### Roulette
 
@@ -173,9 +173,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | GINF-08 | Phase 5.1 | Complete |
 | GINF-09 | Phase 5.1 | Complete |
 | BJK-01 | Phase 5 | Complete |
-| BJK-02 | Phase 5.2 | Pending |
+| BJK-02 | Phase 5.2 | Complete |
 | BJK-03 | Phase 5 | Complete |
-| BJK-04 | Phase 5.2 | Pending |
+| BJK-04 | Phase 5.2 | Complete |
 | ROUL-01 | Phase 5.1 | Complete |
 | ROUL-02 | Phase 5.1 | Complete |
 | ROUL-03 | Phase 5.1 | Complete |
