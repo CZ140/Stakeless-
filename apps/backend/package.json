@@ -6,7 +6,9 @@
     "dev": "tsx watch src/index.ts",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@gambling/shared": "workspace:*",
@@ -32,6 +34,7 @@
     "@types/nodemailer": "^7.0.11",
     "@types/pg": "^8.11.0",
     "drizzle-kit": "^0.27.0",
-    "tsx": "^4.0.0"
+    "tsx": "^4.0.0",
+    "vitest": "^4.0.18"
   }
 }
