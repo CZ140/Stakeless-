@@ -55,9 +55,9 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Plinko
 
-- [ ] **PLNK-01**: User can select a bet amount, risk level (Low / Medium / High), and row count before dropping
-- [ ] **PLNK-02**: Ball animation follows a plausible physical path through pegs to the final slot
-- [ ] **PLNK-03**: Final slot determines the payout multiplier; winnings are applied to the user's balance after animation completes
+- [x] **PLNK-01**: User can select a bet amount, risk level (Low / Medium / High), and row count before dropping
+- [x] **PLNK-02**: Ball animation follows a plausible physical path through pegs to the final slot
+- [x] **PLNK-03**: Final slot determines the payout multiplier; winnings are applied to the user's balance after animation completes
 
 ### Mines
 
@@ -183,9 +183,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | ROUL-05 | Phase 4 | Complete |
 | ROUL-06 | Phase 4 | Complete |
 | ROUL-07 | Phase 4 | Complete |
-| PLNK-01 | Phase 5 | Pending |
-| PLNK-02 | Phase 5 | Pending |
-| PLNK-03 | Phase 5 | Pending |
+| PLNK-01 | Phase 5 | Complete |
+| PLNK-02 | Phase 5 | Complete |
+| PLNK-03 | Phase 5 | Complete |
 | MINE-01 | Phase 5 | Complete |
 | MINE-02 | Phase 5 | Complete |
 | MINE-03 | Phase 5 | Complete |

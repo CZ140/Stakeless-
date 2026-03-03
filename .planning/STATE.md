@@ -3,12 +3,12 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: unknown
-last_updated: "2026-03-03T06:18:40.968Z"
+last_updated: "2026-03-03T06:21:11.703Z"
 progress:
   total_phases: 6
   completed_phases: 5
   total_plans: 18
-  completed_plans: 15
+  completed_plans: 16
 ---
 
 # Project State
@@ -23,9 +23,9 @@ See: .planning/PROJECT.md (updated 2026-02-27)
 ## Current Position
 
 Phase: 5 of 8 (Remaining Games — Plinko, Mines, Blackjack)
-Plan: 4 of 5 complete in Phase 5 (05-01 Plinko, 05-02 Mines, 05-03 Mines UI, 05-04 Blackjack backend done)
-Status: Phase 5 in progress — Blackjack backend complete; 05-05 Blackjack UI remaining
-Last activity: 2026-03-03 — Completed 05-04: Blackjack backend (blackjackService TDD + 5 routes, 3:2 natural payout, disconnect auto-complete)
+Plan: 1 of 5 complete in Phase 5 (05-01 Plinko backend + frontend done)
+Status: Phase 5 in progress — Plinko playable at /games/plinko; 05-02 through 05-05 remaining
+Last activity: 2026-03-03 — Completed 05-01: Plinko backend service + POST /api/games/plinko/bet + PlinkoPage SVG board + ball animation
 
 Progress: [██████████] 87%
 
@@ -66,6 +66,7 @@ Progress: [██████████] 87%
 | Phase 04-game-infrastructure P03 | 45 min | 3 tasks | 8 files |
 | Phase 05-remaining-games P02 | 3 | 2 tasks | 3 files |
 | Phase 05-remaining-games P04 | 5 | 2 tasks | 3 files |
+| Phase 05-remaining-games P01 | 6 | 3 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -128,6 +129,8 @@ Recent decisions affecting current work:
 - [Phase 05-remaining-games]: Dealer hole card never sent to client during player_turn — security by design
 - [Phase 05-remaining-games]: Natural blackjack profit = betAmount + floor(betAmount * 0.5) for 3:2 payout (roulette profit semantics)
 - [Phase 05-remaining-games]: dealerPlay returns new state (immutable) — avoids mutation bugs in disconnect auto-complete flow
+- [Phase 05-remaining-games]: Plinko ball path pre-computed client-side using Fisher-Yates-shuffled L/R decisions constrained to land at server-determined bucket
+- [Phase 05-remaining-games]: Frontend PLINKO_MULTIPLIERS table mirrors backend — maintained manually (no shared package needed for v1.0)
 
 ### Pending Todos
 
@@ -144,5 +147,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-03-03
-Stopped at: Completed 05-04-PLAN.md (Blackjack backend — blackjackService TDD + deal/hit/stand/double/active-session routes)
+Stopped at: Completed 05-01-PLAN.md (Plinko game — backend service + REST endpoint + frontend PlinkoPage + SVG board animation)
 Resume file: None
