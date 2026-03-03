@@ -18,16 +18,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-02-27)
 
 **Core value:** Players can jump in daily, claim their bonus, play fair-odds casino games with virtual coins, and compete on leaderboards — no real-money risk.
-**Current focus:** Phase 4 — Game Infrastructure & Roulette (in progress, Plans 01 and 02 of 03 complete)
+**Current focus:** Phase 4 — Game Infrastructure & Roulette (COMPLETE — all 3 plans done)
 
 ## Current Position
 
-Phase: 4 of 8 (Game Infrastructure & Roulette) — IN PROGRESS
-Plan: 2 of 3 complete (04-01 and 04-02 both complete)
-Status: Phase 4 Plan 01 complete — rouletteService.ts pure resolver + TDD (19 cases) + gamesRouter POST /roulette/bet + app.ts registration
-Last activity: 2026-03-03 — Completed 04-01: rouletteService.ts + games.ts + app.ts update; vitest setup
+Phase: 4 of 8 (Game Infrastructure & Roulette) — COMPLETE
+Plan: 3 of 3 complete (04-01, 04-02, 04-03 all complete)
+Status: Phase 4 complete — full roulette game playable at /games/roulette: GSAP wheel + betting table + chip indicators + result overlay
+Last activity: 2026-03-02 — Completed 04-03: Roulette UI components + bug fixes (wheel rotation math, chip badges, UX flow)
 
-Progress: [████████░░] 70%
+Progress: [██████████] 87%
 
 ## Performance Metrics
 
@@ -63,6 +63,7 @@ Progress: [████████░░] 70%
 | Phase 03.1-auth-ui-gap-closure P01 | 45 min | 2 tasks | 2 files |
 | Phase 04-game-infrastructure P01 | 3 min | 2 tasks | 6 files |
 | Phase 04-game-infrastructure P02 | 4 min | 2 tasks | 4 files |
+| Phase 04-game-infrastructure P03 | 45 min | 3 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -115,6 +116,10 @@ Recent decisions affecting current work:
 - [Phase 04-game-infrastructure P02]: GameCard id prop kept in interface even though not used in render — Phase 5 games may need it for analytics/tracking
 - [Phase 04-game-infrastructure P02]: RoulettePage created as minimal placeholder (Header + loading text) so App.tsx import resolves without errors before Plan 03 implements the full UI
 - [Phase 04-game-infrastructure P02]: GAMES array defined at module scope above DashboardPage function — constant data, no need to move inside component
+- [Phase 04-game-infrastructure P03]: Wheel rotation accumulates non-modded in useRef — modding to 360 causes subsequent spins to barely move because GSAP rotation is absolute
+- [Phase 04-game-infrastructure P03]: pocketCentreAngle = index * POCKET_ANGLE + POCKET_ANGLE/2 — brings pocket centre (not leading edge) under 12 o'clock arrow
+- [Phase 04-game-infrastructure P03]: ChipRack spinDisabled vs disabled split — bet controls lock during spinning+result, Spin button locks only during spinning so it handles overlay dismiss
+- [Phase 04-game-infrastructure P03]: No Play Again button — Spin button handles overlay dismiss and new round, reducing UI surface to single action verb
 
 ### Pending Todos
 
@@ -130,6 +135,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-03
-Stopped at: Completed 04-01-PLAN.md (rouletteService.ts pure resolver + vitest TDD + gamesRouter POST /roulette/bet + app.ts registration)
+Last session: 2026-03-02
+Stopped at: Completed 04-03-PLAN.md (Roulette UI — wheel, table, chip indicators, result overlay, bug fixes)
 Resume file: None

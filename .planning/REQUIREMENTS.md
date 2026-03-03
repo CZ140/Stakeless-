@@ -51,7 +51,7 @@ Requirements for initial release. Each maps to roadmap phases.
 - [x] **ROUL-04**: User can place straight-up single number bets
 - [x] **ROUL-05**: User can place Dozens bets (1–12, 13–24, 25–36)
 - [x] **ROUL-06**: User can place Columns bets
-- [ ] **ROUL-07**: Animated wheel spin reveals the result; ball decelerates realistically before stopping
+- [x] **ROUL-07**: Animated wheel spin reveals the result; ball decelerates realistically before stopping
 
 ### Plinko
 
@@ -182,7 +182,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | ROUL-04 | Phase 4 | Complete |
 | ROUL-05 | Phase 4 | Complete |
 | ROUL-06 | Phase 4 | Complete |
-| ROUL-07 | Phase 4 | Pending |
+| ROUL-07 | Phase 4 | Complete |
 | PLNK-01 | Phase 5 | Pending |
 | PLNK-02 | Phase 5 | Pending |
 | PLNK-03 | Phase 5 | Pending |
