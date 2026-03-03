@@ -134,7 +134,7 @@ Plans:
 **Plans**: 1 plan
 
 Plans:
-- [ ] 05.1-01-PLAN.md — Fix `rouletteStore.ts` selectedChip + mute localStorage persistence; write Phase 04 VERIFICATION.md with evidence for all 11 requirements
+- [x] 05.1-01-PLAN.md — Fix `rouletteStore.ts` selectedChip + mute localStorage persistence; write Phase 04 VERIFICATION.md with evidence for all 11 requirements
 
 ### Phase 5.2: Blackjack Double Down & Header Profile Link Fix *(INSERTED — gap closure)*
 **Goal:** Fix the critical Blackjack Double Down API defect that leaves dealer hand total blank, and remove the broken /profile header link
@@ -208,7 +208,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8
 | 3.1. Auth UI Gap Closure | 1/1 | Complete   | 2026-03-02 |
 | 4. Game Infrastructure & Roulette | 3/3 | Complete   | 2026-03-03 |
 | 5. Remaining Games | 5/5 | Complete   | 2026-03-03 |
-| 5.1. Phase 04 Verification & Roulette Fix | 0/1 | Not started | - |
+| 5.1. Phase 04 Verification & Roulette Fix | 1/1 | Complete   | 2026-03-03 |
 | 5.2. Blackjack Double Down & Header Fix | 0/1 | Not started | - |
 | 6. Leaderboards & Real-Time | 0/2 | Not started | - |
 | 7. Player Profile | 0/2 | Not started | - |

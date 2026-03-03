@@ -22,10 +22,10 @@ See: .planning/PROJECT.md (updated 2026-02-27)
 
 ## Current Position
 
-Phase: 5 of 8 COMPLETE (Remaining Games — Plinko, Mines, Blackjack — all done)
-Plan: 5 of 5 complete in Phase 5
-Status: Phase 5 complete — all four v1 games playable: Roulette, Plinko, Mines, Blackjack
-Last activity: 2026-03-03 — Completed 05-05: Blackjack frontend — store, card component, full page UI, 4 games on dashboard
+Phase: 5.1 of 8 COMPLETE (Phase 04 verification gap closure + Roulette store persistence fix)
+Plan: 1 of 1 complete in Phase 5.1
+Status: Phase 5.1 complete — 11 orphaned Phase 04 requirements closed; Roulette selectedChip persistence fixed
+Last activity: 2026-03-03 — Completed 05.1-01: Fixed rouletteStore.ts localStorage persistence + created Phase 04 VERIFICATION.md
 
 Progress: [██████████] 100%
 
@@ -69,6 +69,7 @@ Progress: [██████████] 100%
 | Phase 05-remaining-games P01 | 6 | 3 tasks | 7 files |
 | Phase 05-remaining-games P03 | 2 | 2 tasks | 4 files |
 | Phase 05-remaining-games P05 | 3 min | 2 tasks | 5 files |
+| Phase 05.1-phase04-verification-roulette-fix P01 | 3 min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -137,6 +138,9 @@ Recent decisions affecting current work:
 - [Phase 05-remaining-games]: Balance not updated on mine hit — bet already deducted at start; no payout means no setBalance call needed
 - [Phase 05-remaining-games]: BlackjackCard animation: CSS @keyframes injected once into document.head via animationInjected guard — avoids duplicate style injection on re-renders
 - [Phase 05-remaining-games]: Blackjack dealer hand: shows only dealerUpCard + face-down during player_turn; full dealerHand revealed on stand/double/settle
+- [Phase 05.1-phase04-verification-roulette-fix]: Use selectedChip_roulette key (not lastBet_roulette) — chip denomination is distinct from raw bet amount
+- [Phase 05.1-phase04-verification-roulette-fix]: Normalize Roulette mute key from 'mute' to 'isMuted_roulette' to match isMuted_{game} pattern across all stores
+- [Phase 05.1-phase04-verification-roulette-fix]: Accept one-time mute preference reset as acceptable UX tradeoff for v1 key normalization
 
 ### Pending Todos
 
@@ -153,5 +157,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-03-03
-Stopped at: Completed 05-05-PLAN.md (Blackjack frontend — Zustand store + BlackjackCard component + BlackjackPage + all 4 games enabled on dashboard — Phase 5 complete)
+Stopped at: Completed 05.1-01-PLAN.md (Fixed rouletteStore.ts selectedChip localStorage persistence + mute key normalization + Phase 04 VERIFICATION.md with all 11 requirements)
 Resume file: None
