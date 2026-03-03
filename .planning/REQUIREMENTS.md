@@ -31,27 +31,27 @@ Requirements for initial release. Each maps to roadmap phases.
 - [x] **GINF-03**: Winnings are credited to the user's balance after the outcome is resolved server-side
 - [x] **GINF-04**: Every game round logs: UserID, GameType, BetAmount, Outcome, Profit, Timestamp
 - [x] **GINF-05**: Each game enforces minimum and maximum bet limits; bets outside range are rejected before play
-- [x] **GINF-06**: Each game shows quick-select bet chips (e.g. 10 / 50 / 100 / 500 / Max) plus Half and Double buttons
-- [x] **GINF-07**: Each game pre-fills the bet amount with the user's last bet on that game
-- [x] **GINF-08**: Each game plays a win or loss animation and sound effect after each round outcome; mute toggle state persists across sessions via localStorage
-- [x] **GINF-09**: Each game has an accessible how-to-play rules panel (modal or collapsible section)
+- [ ] **GINF-06**: Each game shows quick-select bet chips (e.g. 10 / 50 / 100 / 500 / Max) plus Half and Double buttons
+- [ ] **GINF-07**: Each game pre-fills the bet amount with the user's last bet on that game
+- [ ] **GINF-08**: Each game plays a win or loss animation and sound effect after each round outcome; mute toggle state persists across sessions via localStorage
+- [ ] **GINF-09**: Each game has an accessible how-to-play rules panel (modal or collapsible section)
 
 ### Blackjack
 
 - [x] **BJK-01**: User can play Blackjack single-player vs a dealer AI
-- [x] **BJK-02**: User can Hit, Stand, or Double Down during their turn
+- [ ] **BJK-02**: User can Hit, Stand, or Double Down during their turn
 - [x] **BJK-03**: Game uses a standard 52-card deck; dealer stands on soft 17
-- [x] **BJK-04**: Cards are animated on deal; hand totals are displayed for player and dealer
+- [ ] **BJK-04**: Cards are animated on deal; hand totals are displayed for player and dealer
 
 ### Roulette
 
-- [x] **ROUL-01**: User can play European Roulette (single zero, 37 pockets)
-- [x] **ROUL-02**: User can place Red/Black bets
-- [x] **ROUL-03**: User can place Odd/Even bets
-- [x] **ROUL-04**: User can place straight-up single number bets
-- [x] **ROUL-05**: User can place Dozens bets (1–12, 13–24, 25–36)
-- [x] **ROUL-06**: User can place Columns bets
-- [x] **ROUL-07**: Animated wheel spin reveals the result; ball decelerates realistically before stopping
+- [ ] **ROUL-01**: User can play European Roulette (single zero, 37 pockets)
+- [ ] **ROUL-02**: User can place Red/Black bets
+- [ ] **ROUL-03**: User can place Odd/Even bets
+- [ ] **ROUL-04**: User can place straight-up single number bets
+- [ ] **ROUL-05**: User can place Dozens bets (1–12, 13–24, 25–36)
+- [ ] **ROUL-06**: User can place Columns bets
+- [ ] **ROUL-07**: Animated wheel spin reveals the result; ball decelerates realistically before stopping
 
 ### Plinko
 
@@ -168,21 +168,21 @@ Which phases cover which requirements. Updated during roadmap creation.
 | GINF-03 | Phase 3 | Complete |
 | GINF-04 | Phase 3 | Complete |
 | GINF-05 | Phase 3 | Complete |
-| GINF-06 | Phase 4 | Complete |
-| GINF-07 | Phase 4 | Complete |
-| GINF-08 | Phase 4 | Complete |
-| GINF-09 | Phase 4 | Complete |
+| GINF-06 | Phase 5.1 | Pending |
+| GINF-07 | Phase 5.1 | Pending |
+| GINF-08 | Phase 5.1 | Pending |
+| GINF-09 | Phase 5.1 | Pending |
 | BJK-01 | Phase 5 | Complete |
-| BJK-02 | Phase 5 | Complete |
+| BJK-02 | Phase 5.2 | Pending |
 | BJK-03 | Phase 5 | Complete |
-| BJK-04 | Phase 5 | Complete |
-| ROUL-01 | Phase 4 | Complete |
-| ROUL-02 | Phase 4 | Complete |
-| ROUL-03 | Phase 4 | Complete |
-| ROUL-04 | Phase 4 | Complete |
-| ROUL-05 | Phase 4 | Complete |
-| ROUL-06 | Phase 4 | Complete |
-| ROUL-07 | Phase 4 | Complete |
+| BJK-04 | Phase 5.2 | Pending |
+| ROUL-01 | Phase 5.1 | Pending |
+| ROUL-02 | Phase 5.1 | Pending |
+| ROUL-03 | Phase 5.1 | Pending |
+| ROUL-04 | Phase 5.1 | Pending |
+| ROUL-05 | Phase 5.1 | Pending |
+| ROUL-06 | Phase 5.1 | Pending |
+| ROUL-07 | Phase 5.1 | Pending |
 | PLNK-01 | Phase 5 | Complete |
 | PLNK-02 | Phase 5 | Complete |
 | PLNK-03 | Phase 5 | Complete |
@@ -225,4 +225,4 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 ---
 *Requirements defined: 2026-02-27*
-*Last updated: 2026-02-27 — traceability filled in after roadmap creation*
+*Last updated: 2026-03-03 — gap closure phases 5.1 and 5.2 assigned; 13 requirements reset to Pending (GINF-06..09, ROUL-01..07, BJK-02, BJK-04)*

@@ -18,6 +18,8 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [ ] **Phase 3.1: Auth UI Gap Closure** *(INSERTED — gap closure)* - Add logout button to Header and fix session-expired redirect to close the AUTH-03 integration gap
 - [x] **Phase 4: Game Infrastructure & Roulette** - Server-side RNG pattern, bet validation, game logging, and the first complete game (Roulette) end-to-end (completed 2026-03-03)
 - [x] **Phase 5: Remaining Games** - Plinko (stateless), Mines (session state), and Blackjack (multi-step session) in complexity order (completed 2026-03-03)
+- [ ] **Phase 5.1: Phase 04 Verification & Roulette Persistence Fix** *(INSERTED — gap closure)* - Create Phase 04 VERIFICATION.md and fix Roulette selectedChip localStorage seed
+- [ ] **Phase 5.2: Blackjack Double Down & Header Profile Link Fix** *(INSERTED — gap closure)* - Fix missing dealerValue in /blackjack/double response and remove broken /profile header link
 - [ ] **Phase 6: Leaderboards & Real-Time** - WebSocket server, balance push, and all three live leaderboard dimensions
 - [ ] **Phase 7: Player Profile** - Public profile page with stats and balance/wagered charts
 - [ ] **Phase 8: Admin & Anti-Cheat** - Role-gated admin panel, player management, audit log, rate limiting, and bot detection
@@ -121,6 +123,30 @@ Plans:
 - [ ] 05-04-PLAN.md — Blackjack backend (blackjackService + 5 routes: deal/hit/stand/double/active-session)
 - [ ] 05-05-PLAN.md — Blackjack frontend (blackjackStore, BlackjackCard component, BlackjackPage with card animations)
 
+### Phase 5.1: Phase 04 Verification & Roulette Persistence Fix *(INSERTED — gap closure)*
+**Goal:** Create the missing Phase 04 VERIFICATION.md to resolve 11 orphaned requirements, and fix the Roulette selectedChip localStorage seeding bug found during audit
+**Depends on**: Phase 5
+**Requirements**: GINF-06, GINF-07, GINF-08, GINF-09, ROUL-01, ROUL-02, ROUL-03, ROUL-04, ROUL-05, ROUL-06, ROUL-07
+**Gap Closure:** Closes gaps from v1.0 MILESTONE-AUDIT.md (all 11 orphaned requirements; GINF-07 code bug)
+**Success Criteria** (what must be TRUE):
+  1. A Phase 04 VERIFICATION.md exists and marks GINF-06..09 and ROUL-01..07 as SATISFIED with evidence from the codebase
+  2. Roulette page loads with the user's last selected chip denomination pre-filled (same localStorage behavior as Plinko, Mines, and Blackjack)
+
+Plans:
+- [ ] 05.1-01-PLAN.md — Run gsd:verify-work on Phase 04 to produce VERIFICATION.md; fix `rouletteStore.ts` selectedChip init from localStorage
+
+### Phase 5.2: Blackjack Double Down & Header Profile Link Fix *(INSERTED — gap closure)*
+**Goal:** Fix the critical Blackjack Double Down API defect that leaves dealer hand total blank, and remove the broken /profile header link
+**Depends on**: Phase 5
+**Requirements**: BJK-02, BJK-04, AUTH-05
+**Gap Closure:** Closes gaps from v1.0 MILESTONE-AUDIT.md (critical code defect + broken flow)
+**Success Criteria** (what must be TRUE):
+  1. After a Blackjack Double Down round, the dealer hand total displays correctly (not "?")
+  2. Clicking the balance display in the Header no longer silently redirects to Dashboard — the link is removed or routes to a valid destination
+
+Plans:
+- [ ] 05.2-01-PLAN.md — Add `dealerValue` to both res.json calls in the `/blackjack/double` handler (`games.ts`); remove or stub the `<Link to="/profile">` wrapper in `Header.tsx`
+
 ### Phase 6: Leaderboards & Real-Time
 **Goal**: All three leaderboards update live via WebSocket push — players see themselves ranked and watch standings change in real time without refreshing
 **Depends on**: Phase 3, Phase 4
@@ -181,6 +207,8 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8
 | 3.1. Auth UI Gap Closure | 1/1 | Complete   | 2026-03-02 |
 | 4. Game Infrastructure & Roulette | 3/3 | Complete   | 2026-03-03 |
 | 5. Remaining Games | 5/5 | Complete   | 2026-03-03 |
+| 5.1. Phase 04 Verification & Roulette Fix | 0/1 | Not started | - |
+| 5.2. Blackjack Double Down & Header Fix | 0/1 | Not started | - |
 | 6. Leaderboards & Real-Time | 0/2 | Not started | - |
 | 7. Player Profile | 0/2 | Not started | - |
 | 8. Admin & Anti-Cheat | 0/3 | Not started | - |
