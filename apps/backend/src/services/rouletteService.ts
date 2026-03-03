@@ -78,7 +78,11 @@ function isBetWon(pocket: number, zone: string): boolean {
 }
 
 function getMultiplier(zone: string): number {
-  if (zone.startsWith('number_')) return 35;
-  if (['dozen_1', 'dozen_2', 'dozen_3', 'col_1', 'col_2', 'col_3'].includes(zone)) return 2;
-  return 1; // red, black, odd, even — 1:1 payout
+  // Multipliers include stake return (deductBet already removed the full bet).
+  // 1:1 payout  → return stake + 1× winnings = 2×
+  // 2:1 payout  → return stake + 2× winnings = 3×
+  // 35:1 payout → return stake + 35× winnings = 36×
+  if (zone.startsWith('number_')) return 36;
+  if (['dozen_1', 'dozen_2', 'dozen_3', 'col_1', 'col_2', 'col_3'].includes(zone)) return 3;
+  return 2; // red, black, odd, even — 1:1 payout
 }
