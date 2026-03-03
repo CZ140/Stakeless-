@@ -36,13 +36,26 @@ export function RouletteWheel({ winningPocket, onSettled }: RouletteWheelProps) 
   useGSAP(() => {
     if (winningPocket === null || !containerRef.current) return;
     const pocketIndex = WHEEL_SEQUENCE.indexOf(winningPocket);
-    const targetRotation = currentRotationRef.current + 5 * 360 + (360 - pocketIndex * POCKET_ANGLE);
+    // Each pocket's leading edge sits at pocketIndex * POCKET_ANGLE degrees clockwise from 12 o'clock.
+    // To bring that pocket's centre under the 12 o'clock marker, the wheel must rotate by
+    // pocketIndex * POCKET_ANGLE + POCKET_ANGLE/2 degrees. We add 5 full extra rotations so the
+    // spin is always visually dramatic, and we accumulate from the true (non-modded) last rotation
+    // so that subsequent spins keep rotating forward instead of snapping back.
+    const pocketCentreAngle = pocketIndex * POCKET_ANGLE + POCKET_ANGLE / 2;
+    // Normalise current accumulated rotation to [0, 360) so the next pocketCentreAngle is always
+    // reached by moving forward. Then add 5 full rotations minimum.
+    const currentNorm = currentRotationRef.current % 360;
+    // How far forward we need to rotate from the current normalised position to reach the target.
+    // Always move forward (clockwise): if the target is behind us in the circle, wrap around.
+    const delta = (pocketCentreAngle - currentNorm + 360) % 360;
+    const targetRotation = currentRotationRef.current + 5 * 360 + delta;
     gsap.to(containerRef.current, {
       rotation: targetRotation,
       duration: 6,
       ease: 'power3.out',
       onComplete: () => {
-        currentRotationRef.current = targetRotation % 360;
+        // Store the full accumulated rotation — NOT modded — so next spin starts from here.
+        currentRotationRef.current = targetRotation;
         onSettled();
       },
     });

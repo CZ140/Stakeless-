@@ -33,7 +33,13 @@ export function RoulettePage() {
   const isResult = gamePhase === 'result';
 
   async function handleSpin() {
-    if (totalBet === 0 || isSpinning || isResult) return;
+    // If result overlay is showing, dismiss it and return to betting phase first.
+    // User can then adjust bets and spin again.
+    if (isResult) {
+      handlePlayAgain();
+      return;
+    }
+    if (totalBet === 0 || isSpinning) return;
     setError(null);
     setGamePhase('spinning');
 
@@ -123,7 +129,6 @@ export function RoulettePage() {
               visible={isResult}
               winningPocket={lastResult?.winningPocket ?? null}
               netAmount={lastResult?.netAmount ?? 0}
-              onDismiss={handlePlayAgain}
             />
           </div>
 
@@ -134,6 +139,8 @@ export function RoulettePage() {
               <ChipRack
                 onSpin={() => void handleSpin()}
                 disabled={isSpinning || isResult}
+                spinDisabled={isSpinning}
+                showingResult={isResult}
                 totalBet={totalBet}
               />
             </div>

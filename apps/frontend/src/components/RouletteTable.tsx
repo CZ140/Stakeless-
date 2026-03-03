@@ -13,8 +13,17 @@ interface RouletteTableProps {
 }
 
 export function RouletteTable({ disabled }: RouletteTableProps) {
-  const { placeChip, selectedChip } = useRouletteStore();
+  const { placeChip, selectedChip, placedChips } = useRouletteStore();
   const balance = useBalanceStore((s) => s.balance);
+
+  // Aggregate chip amounts per zone
+  const chipsByZone = React.useMemo(() => {
+    const map: Record<string, number> = {};
+    for (const chip of placedChips) {
+      map[chip.zone] = (map[chip.zone] ?? 0) + chip.amount;
+    }
+    return map;
+  }, [placedChips]);
 
   function handlePlace(zone: BetZone) {
     if (disabled) return;
@@ -41,7 +50,34 @@ export function RouletteTable({ disabled }: RouletteTableProps) {
     userSelect: 'none' as const,
     opacity: disabled ? 0.6 : 1,
     transition: 'opacity 0.2s',
+    position: 'relative' as const,
   });
+
+  // Chip badge rendered inside a cell when chips are placed on that zone
+  function ChipBadge({ zone }: { zone: string }) {
+    const amount = chipsByZone[zone];
+    if (!amount) return null;
+    return (
+      <span style={{
+        position: 'absolute',
+        top: '2px',
+        right: '3px',
+        backgroundColor: '#7c3aed',
+        color: '#ffffff',
+        borderRadius: '10px',
+        fontSize: '0.6rem',
+        fontWeight: 800,
+        padding: '1px 4px',
+        lineHeight: 1.4,
+        pointerEvents: 'none',
+        boxShadow: '0 0 4px rgba(124,58,237,0.6)',
+        minWidth: '16px',
+        textAlign: 'center',
+      }}>
+        {amount >= 1000 ? `${Math.round(amount / 1000)}k` : amount}
+      </span>
+    );
+  }
 
   // Suppress unused variable warning — balance used for future Max chip resolution
   void balance;
@@ -56,6 +92,7 @@ export function RouletteTable({ disabled }: RouletteTableProps) {
           style={{ ...cellStyle('#16a34a'), gridColumn: '1 / -1', minHeight: '36px' }}
         >
           0
+          <ChipBadge zone="number_0" />
         </div>
         {/* 1-36 in 3-column grid */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '2px' }}>
@@ -68,6 +105,7 @@ export function RouletteTable({ disabled }: RouletteTableProps) {
                   style={cellStyle(RED_NUMBERS.has(n) ? '#dc2626' : '#111827')}
                 >
                   {n}
+                  <ChipBadge zone={`number_${n}`} />
                 </div>
               ))}
             </React.Fragment>
@@ -95,6 +133,7 @@ export function RouletteTable({ disabled }: RouletteTableProps) {
             style={{ ...cellStyle('#1a1a2e'), flex: 1, minWidth: '70px' }}
           >
             {label}
+            <ChipBadge zone={zone} />
           </div>
         ))}
       </div>

@@ -4,7 +4,6 @@ interface ResultOverlayProps {
   visible: boolean;
   winningPocket: number | null;
   netAmount: number;       // profit - totalBet (negative = loss, positive = win)
-  onDismiss: () => void;
 }
 
 const RED_NUMBERS = new Set([1,3,5,7,9,12,14,16,18,19,21,23,25,27,30,32,34,36]);
@@ -16,7 +15,7 @@ function getPocketLabel(pocket: number): { color: string; label: string } {
     : { color: '#374151', label: 'Black' };
 }
 
-export function ResultOverlay({ visible, winningPocket, netAmount, onDismiss }: ResultOverlayProps) {
+export function ResultOverlay({ visible, winningPocket, netAmount }: ResultOverlayProps) {
   const pocket = winningPocket ?? 0;
   const { color, label } = getPocketLabel(pocket);
   const won = netAmount > 0;
@@ -54,25 +53,13 @@ export function ResultOverlay({ visible, winningPocket, netAmount, onDismiss }: 
           <div style={{
             fontSize: '1.4rem', fontWeight: 700,
             color: won ? '#a78bfa' : push ? '#e0d7ff' : '#ef4444',
-            marginBottom: '24px',
+            marginBottom: '8px',
           }}>
             {won ? `+${netAmount}` : push ? '+/-0' : `${netAmount}`} coins
           </div>
-          <button
-            onClick={onDismiss}
-            style={{
-              padding: '10px 28px',
-              backgroundColor: '#7c3aed',
-              color: '#ffffff',
-              border: 'none',
-              borderRadius: '8px',
-              fontSize: '0.95rem',
-              fontWeight: 600,
-              cursor: 'pointer',
-            }}
-          >
-            Play Again
-          </button>
+          <div style={{ color: '#718096', fontSize: '0.78rem', marginTop: '8px' }}>
+            Press Spin to play again
+          </div>
         </motion.div>
       )}
     </AnimatePresence>

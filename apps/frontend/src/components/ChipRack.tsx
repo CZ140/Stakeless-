@@ -5,11 +5,16 @@ const CHIP_AMOUNTS = [10, 50, 100, 500] as const;
 
 interface ChipRackProps {
   onSpin: () => void;
+  /** Disables bet-adjustment controls (undo, clear, half, double, rebet) */
   disabled: boolean;
+  /** Disables the Spin button specifically — separate from bet controls */
+  spinDisabled: boolean;
   totalBet: number;
+  /** When true, result overlay is showing — Spin button label changes to communicate action */
+  showingResult?: boolean;
 }
 
-export function ChipRack({ onSpin, disabled, totalBet }: ChipRackProps) {
+export function ChipRack({ onSpin, disabled, spinDisabled, totalBet, showingResult }: ChipRackProps) {
   const { selectedChip, setSelectedChip, undoLast, clearAll, halfBet, doubleBet, isMuted, toggleMute } = useRouletteStore();
   const balance = useBalanceStore((s) => s.balance);
 
@@ -126,20 +131,20 @@ export function ChipRack({ onSpin, disabled, totalBet }: ChipRackProps) {
         </span>
         <button
           onClick={onSpin}
-          disabled={disabled || totalBet === 0}
+          disabled={spinDisabled || (!showingResult && totalBet === 0)}
           style={{
             padding: '12px 32px',
-            backgroundColor: disabled || totalBet === 0 ? '#2d2d4e' : '#7c3aed',
+            backgroundColor: spinDisabled || (!showingResult && totalBet === 0) ? '#2d2d4e' : '#7c3aed',
             color: '#ffffff',
             border: 'none',
             borderRadius: '8px',
             fontSize: '1rem',
             fontWeight: 700,
-            cursor: disabled || totalBet === 0 ? 'not-allowed' : 'pointer',
+            cursor: spinDisabled || (!showingResult && totalBet === 0) ? 'not-allowed' : 'pointer',
             transition: 'background-color 0.2s',
           }}
         >
-          {disabled ? 'Spinning...' : 'Spin'}
+          {spinDisabled ? 'Spinning...' : showingResult ? 'Play Again' : 'Spin'}
         </button>
       </div>
     </div>
