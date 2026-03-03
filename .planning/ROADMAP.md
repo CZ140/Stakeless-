@@ -95,12 +95,12 @@ Plans:
   3. Quick-select bet chips (10 / 50 / 100 / 500 / Max), Half, and Double buttons appear on the bet panel; the game pre-fills the bet with the user's last Roulette wager
   4. After a round, a win plays a win animation and sound; a loss plays a loss animation and sound; the mute toggle state persists across page refreshes
   5. A how-to-play rules panel is accessible from within the game and explains all bet types and payouts
-**Plans**: TBD
+**Plans**: 3 plans
 
 Plans:
-- [ ] 04-01: RNG utilities, GameEngine interface, BetLogService, bet validation middleware
-- [ ] 04-02: Roulette game engine (server-side, pure function), POST /api/games/roulette/bet route
-- [ ] 04-03: Roulette React UI — wheel animation, bet panel, quick-select chips, win/loss feedback, sound system, rules panel
+- [ ] 04-01-PLAN.md — Backend: rouletteService.ts (pure resolver + TDD), gamesRouter POST /api/games/roulette/bet, register in app.ts
+- [ ] 04-02-PLAN.md — App shell: GameCard component, dashboard game cards section, App.tsx /games/roulette protected route
+- [ ] 04-03-PLAN.md — Full Roulette UI: GSAP wheel, CSS Grid table, ChipRack, rouletteStore, sound hook, ResultOverlay, HowToPlayModal, RoulettePage
 
 ### Phase 5: Remaining Games
 **Goal**: All four v1 games are playable — Plinko and Mines complete the stateless and session-state patterns; Blackjack completes the multi-step session pattern
