@@ -7,6 +7,7 @@ import { VerifyEmailPage } from './pages/VerifyEmailPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { RoulettePage } from './pages/RoulettePage';
 import { PlinkoPage } from './pages/PlinkoPage';
+import { MinesPage } from './pages/MinesPage';
 import { ProtectedRoute } from './components/ProtectedRoute';
 
 export default function App() {
@@ -46,6 +47,14 @@ export default function App() {
         element={
           <ProtectedRoute>
             <PlinkoPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/games/mines"
+        element={
+          <ProtectedRoute>
+            <MinesPage />
           </ProtectedRoute>
         }
       />
