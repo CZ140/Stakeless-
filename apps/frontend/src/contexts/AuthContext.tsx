@@ -11,6 +11,7 @@ import axios from 'axios';
 import { setAccessToken } from '../api/client';
 import { apiClient } from '../api/client';
 import { useBalanceStore } from '../stores/balanceStore';
+import { socket } from '../socket';
 
 interface AuthState {
   accessToken: string | null;
@@ -74,6 +75,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     window.addEventListener('auth:session-expired', handleExpiry);
     return () => window.removeEventListener('auth:session-expired', handleExpiry);
   }, []);
+
+  // Socket lifecycle: connect when authenticated, disconnect on sign-out or session expiry
+  useEffect(() => {
+    if (state.accessToken) {
+      socket.connect();
+    } else {
+      socket.disconnect();
+    }
+  }, [state.accessToken]);
+
+  // Balance push from WebSocket after game settlement — updates balanceStore directly
+  useEffect(() => {
+    function onBalanceUpdate({ balance }: { balance: number }) {
+      useBalanceStore.getState().setBalance(balance);
+    }
+    socket.on('balance:update', onBalanceUpdate);
+    return () => {
+      socket.off('balance:update', onBalanceUpdate);
+    };
+  }, []); // empty deps — socket singleton is stable
 
   const signIn = useCallback((token: string) => {
     setAccessToken(token);
