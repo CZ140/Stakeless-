@@ -3,7 +3,7 @@ import { BalanceDisplay } from './BalanceDisplay';
 import { useAuth } from '../contexts/AuthContext';
 
 export function Header() {
-  const { signOut } = useAuth();
+  const { signOut, accessToken, username } = useAuth();
 
   return (
     <header
@@ -41,6 +41,21 @@ export function Header() {
         >
           Leaderboard
         </Link>
+        {accessToken && username && (
+          <Link
+            to={`/profile/${username}`}
+            style={{
+              color: '#e0d7ff',
+              textDecoration: 'none',
+              fontSize: '0.875rem',
+              padding: '6px 14px',
+              borderRadius: '4px',
+              border: '1px solid rgba(255,255,255,0.15)',
+            }}
+          >
+            Profile
+          </Link>
+        )}
         <button
           onClick={() => void signOut()}
           style={{

@@ -10,6 +10,7 @@ import { PlinkoPage } from './pages/PlinkoPage';
 import { MinesPage } from './pages/MinesPage';
 import { BlackjackPage } from './pages/BlackjackPage';
 import { LeaderboardPage } from './pages/LeaderboardPage';
+import { ProfilePage } from './pages/ProfilePage';
 import { ProtectedRoute } from './components/ProtectedRoute';
 
 export default function App() {
@@ -69,6 +70,7 @@ export default function App() {
         }
       />
       <Route path="/leaderboard" element={<LeaderboardPage />} />
+      <Route path="/profile/:username" element={<ProfilePage />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );

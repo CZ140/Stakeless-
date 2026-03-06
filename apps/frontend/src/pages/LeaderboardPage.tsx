@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { Header } from '../components/Header';
 import { useLeaderboard } from '../hooks/useLeaderboard';
 import { useLeaderboardStore } from '../stores/leaderboardStore';
@@ -182,7 +183,12 @@ export function LeaderboardPage() {
                     #{rank}
                   </span>
                   <span style={{ fontWeight: isOwnRow ? 600 : 400 }}>
-                    {row.username}
+                    <Link
+                      to={`/profile/${row.username}`}
+                      style={{ color: 'inherit', textDecoration: 'none' }}
+                    >
+                      {row.username}
+                    </Link>
                     {isOwnRow && (
                       <span style={{ marginLeft: '8px', fontSize: '0.75rem', color: '#7c3aed', fontWeight: 600 }}>
                         You
