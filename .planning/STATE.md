@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: verifying
-stopped_at: "Completed 08-01: Anti-cheat rate limiting and bet bounds"
-last_updated: "2026-03-06T04:29:58.262Z"
-last_activity: "2026-03-06 — Completed 07-02: ProfilePage verified by user (stat cards, balance history chart, wagered/day chart, header profile link, leaderboard username links)"
+stopped_at: "Completed 08-03: Admin panel UI (AdminRoute, AdminPage, /admin route)"
+last_updated: "2026-03-06T05:30:00.000Z"
+last_activity: "2026-03-06 — Completed 08-03: Admin panel UI with AdminRoute guard, AdminPage dashboard (stats, search, history inspector, ban/unban), /admin route wired in App.tsx"
 progress:
   total_phases: 11
-  completed_phases: 10
+  completed_phases: 11
   total_plans: 27
-  completed_plans: 26
+  completed_plans: 27
   percent: 100
 ---
 
@@ -25,10 +25,10 @@ See: .planning/PROJECT.md (updated 2026-02-27)
 
 ## Current Position
 
-Phase: 7 of 11 COMPLETE (Player Profile)
-Plan: 2 of 2 complete in Phase 7 — Phase 7 fully complete
-Status: Phase 7 complete — all features verified: profile backend (GET /api/profile/:username, username in /auth/me) + frontend (ProfilePage with Recharts charts, auth-gated Header link, clickable Leaderboard usernames)
-Last activity: 2026-03-06 — Completed 07-02: ProfilePage verified by user (stat cards, balance history chart, wagered/day chart, header profile link, leaderboard username links)
+Phase: 8 of 11 COMPLETE (Admin & Anti-Cheat)
+Plan: 3 of 3 complete in Phase 8 — Phase 8 fully complete
+Status: Phase 8 complete — all features verified: anti-cheat middleware (gameLimiter, clickInterval, bet bounds), admin backend (requireAdmin, adminService, admin REST API), admin frontend (AdminRoute guard, AdminPage dashboard with stats/search/inspector/ban controls, /admin route)
+Last activity: 2026-03-06 — Completed 08-03: Admin panel UI with AdminRoute guard, AdminPage dashboard (stats, search, history inspector, ban/unban), /admin route wired in App.tsx
 
 Progress: [██████████] 100%
 
@@ -177,6 +177,10 @@ Recent decisions affecting current work:
 - [Phase 08-admin-anti-cheat]: gameLimiter applied before requireAuth on POST routes — rate limit checked before any DB auth query, maximizing bot rejection efficiency
 - [Phase 08-admin-anti-cheat]: clickInterval uses module-scoped Map with no cleanup timer — v1 in-memory is acceptable for IP tracking
 - [Phase 08-admin-anti-cheat]: GET routes (/mines/active-session, /blackjack/active-session) excluded from gameLimiter and clickInterval — polling is normal player behavior on these routes
+- [Phase 08-admin-anti-cheat P03]: AdminRoute probes /api/admin/stats to confirm role rather than reading role from JWT payload — backend is authoritative for role checks
+- [Phase 08-admin-anti-cheat P03]: No separate StatCard component file — three cards rendered inline in AdminPage; only three instances, no abstraction justified
+- [Phase 08-admin-anti-cheat P03]: Optimistic ban/unban update — searchResults array mapped in place on API success; no secondary fetch needed for admin panel
+- [Phase 08-admin-anti-cheat P03]: Role gate pattern uses useEffect([accessToken]) with adminChecked state flag to prevent flash of unauthorized content before probe resolves
 
 ### Pending Todos
 
@@ -192,6 +196,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-06T04:29:58.256Z
-Stopped at: Completed 08-01: Anti-cheat rate limiting and bet bounds
+Last session: 2026-03-06T05:30:00.000Z
+Stopped at: Completed 08-03: Admin panel UI (AdminRoute, AdminPage, /admin route) — Phase 8 fully complete
 Resume file: None

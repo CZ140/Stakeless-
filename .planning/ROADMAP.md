@@ -22,7 +22,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [ ] **Phase 5.2: Blackjack Double Down & Header Profile Link Fix** *(INSERTED — gap closure)* - Fix missing dealerValue in /blackjack/double response and remove broken /profile header link
 - [x] **Phase 6: Leaderboards & Real-Time** - WebSocket server, balance push, and all three live leaderboard dimensions (completed 2026-03-04)
 - [x] **Phase 7: Player Profile** - Public profile page with stats and balance/wagered charts (completed 2026-03-06)
-- [ ] **Phase 8: Admin & Anti-Cheat** - Role-gated admin panel, player management, audit log, rate limiting, and bot detection
+- [x] **Phase 8: Admin & Anti-Cheat** - Role-gated admin panel, player management, audit log, rate limiting, and bot detection (completed 2026-03-06)
 
 ## Phase Details
 
@@ -212,4 +212,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8
 | 5.2. Blackjack Double Down & Header Fix | 0/1 | Not started | - |
 | 6. Leaderboards & Real-Time | 2/2 | Complete   | 2026-03-04 |
 | 7. Player Profile | 2/2 | Complete   | 2026-03-06 |
-| 8. Admin & Anti-Cheat | 2/3 | In Progress|  |
+| 8. Admin & Anti-Cheat | 3/3 | Complete   | 2026-03-06 |
