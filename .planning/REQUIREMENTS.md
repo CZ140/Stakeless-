@@ -91,9 +91,9 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Anti-Cheat
 
-- [ ] **ANTI-01**: Rate limiting is applied to all game bet endpoints and API routes
-- [ ] **ANTI-02**: All bet amounts, game parameters, and outcomes are validated server-side before any balance change occurs
-- [ ] **ANTI-03**: Click interval checks detect and reject requests at inhuman speed (anti-automation)
+- [x] **ANTI-01**: Rate limiting is applied to all game bet endpoints and API routes
+- [x] **ANTI-02**: All bet amounts, game parameters, and outcomes are validated server-side before any balance change occurs
+- [x] **ANTI-03**: Click interval checks detect and reject requests at inhuman speed (anti-automation)
 
 ---
 
@@ -204,9 +204,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | ADMIN-03 | Phase 8 | Complete |
 | ADMIN-04 | Phase 8 | Complete |
 | ADMIN-05 | Phase 8 | Complete |
-| ANTI-01 | Phase 8 | Pending |
-| ANTI-02 | Phase 8 | Pending |
-| ANTI-03 | Phase 8 | Pending |
+| ANTI-01 | Phase 8 | Complete |
+| ANTI-02 | Phase 8 | Complete |
+| ANTI-03 | Phase 8 | Complete |
 
 **Coverage:**
 - v1 requirements: 53 total (note: original count of 52 was a typo — actual enumerated requirements = 53)

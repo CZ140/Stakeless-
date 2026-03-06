@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: verifying
-stopped_at: Completed 08-02-PLAN.md
-last_updated: "2026-03-06T04:29:24.951Z"
+stopped_at: "Completed 08-01: Anti-cheat rate limiting and bet bounds"
+last_updated: "2026-03-06T04:29:58.262Z"
 last_activity: "2026-03-06 — Completed 07-02: ProfilePage verified by user (stat cards, balance history chart, wagered/day chart, header profile link, leaderboard username links)"
 progress:
   total_phases: 11
   completed_phases: 10
   total_plans: 27
-  completed_plans: 25
+  completed_plans: 26
   percent: 100
 ---
 
@@ -79,6 +79,7 @@ Progress: [██████████] 100%
 | Phase 07-player-profile P01 | 1 | 2 tasks | 3 files |
 | Phase 07-player-profile P02 | 30 min | 3 tasks | 5 files |
 | Phase 08-admin-anti-cheat P02 | 2 | 2 tasks | 4 files |
+| Phase 08-admin-anti-cheat P01 | 1 | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -173,6 +174,9 @@ Recent decisions affecting current work:
 - [Phase 08-admin-anti-cheat]: requireAdmin uses authPassed flag pattern to chain requireAuth without double-response risk, then queries DB for role (never JWT payload)
 - [Phase 08-admin-anti-cheat]: banUser uses sql template for atomic tokenVersion increment — avoids JS read-modify-write race condition
 - [Phase 08-admin-anti-cheat]: adminRouter.use(requireAdmin) applied once at router level — all 5 endpoints protected without per-route repetition
+- [Phase 08-admin-anti-cheat]: gameLimiter applied before requireAuth on POST routes — rate limit checked before any DB auth query, maximizing bot rejection efficiency
+- [Phase 08-admin-anti-cheat]: clickInterval uses module-scoped Map with no cleanup timer — v1 in-memory is acceptable for IP tracking
+- [Phase 08-admin-anti-cheat]: GET routes (/mines/active-session, /blackjack/active-session) excluded from gameLimiter and clickInterval — polling is normal player behavior on these routes
 
 ### Pending Todos
 
@@ -188,6 +192,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-06T04:29:24.944Z
-Stopped at: Completed 08-02-PLAN.md
+Last session: 2026-03-06T04:29:58.256Z
+Stopped at: Completed 08-01: Anti-cheat rate limiting and bet bounds
 Resume file: None
