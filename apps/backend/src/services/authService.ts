@@ -172,6 +172,7 @@ export async function getProfile(userId: number) {
   const [user] = await db.select({
     id: users.id,
     email: users.email,
+    username: users.username,
     balance: users.balance,
     totalWagered: users.totalWagered,
     totalProfit: users.totalProfit,
@@ -188,6 +189,7 @@ export async function getProfile(userId: number) {
   return {
     id: user.id,
     email: user.email,
+    username: user.username,
     balance: user.balance,
     totalWagered: user.totalWagered,
     totalProfit: user.totalProfit,
