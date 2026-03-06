@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: verifying
-stopped_at: Completed 07-01-PLAN.md
-last_updated: "2026-03-06T03:24:44.861Z"
-last_activity: "2026-03-04 — Completed 06-02: LeaderboardPage verified by user (three tabs, live updates, own-rank display, balance header updates, nav link)"
+stopped_at: Completed 07-02-PLAN.md
+last_updated: "2026-03-06T03:52:21Z"
+last_activity: "2026-03-06 — Completed 07-02: ProfilePage with Recharts charts verified by user (stat cards, balance history, wagered/day charts, header link, leaderboard links)"
 progress:
   total_phases: 11
   completed_phases: 9
   total_plans: 24
-  completed_plans: 23
+  completed_plans: 24
   percent: 100
 ---
 
@@ -25,10 +25,10 @@ See: .planning/PROJECT.md (updated 2026-02-27)
 
 ## Current Position
 
-Phase: 6 of 8 COMPLETE (Leaderboards + Real-Time)
-Plan: 2 of 2 complete in Phase 6 — Phase 6 fully complete
-Status: Phase 6 complete — all features verified: leaderboard backend (Socket.IO server, REST, balance:update push) + frontend (LeaderboardPage, socket singleton, Zustand store, live-update hook, AuthContext wiring)
-Last activity: 2026-03-04 — Completed 06-02: LeaderboardPage verified by user (three tabs, live updates, own-rank display, balance header updates, nav link)
+Phase: 7 of 11 COMPLETE (Player Profile)
+Plan: 2 of 2 complete in Phase 7 — Phase 7 fully complete
+Status: Phase 7 complete — all features verified: profile backend (GET /api/profile/:username, username in /auth/me) + frontend (ProfilePage with Recharts charts, auth-gated Header link, clickable Leaderboard usernames)
+Last activity: 2026-03-06 — Completed 07-02: ProfilePage verified by user (stat cards, balance history chart, wagered/day chart, header profile link, leaderboard username links)
 
 Progress: [██████████] 100%
 
@@ -77,6 +77,7 @@ Progress: [██████████] 100%
 | Phase 06-leaderboards-real-time P01 | 8 min | 2 tasks | 8 files |
 | Phase 06-leaderboards-real-time P02 | 4 min | 2 tasks | 8 files |
 | Phase 07-player-profile P01 | 1 | 2 tasks | 3 files |
+| Phase 07-player-profile P02 | 30 min | 3 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -165,6 +166,9 @@ Recent decisions affecting current work:
 - [Phase 07-player-profile]: Profile endpoint is fully public (no requireAuth) — guests can view any player profile
 - [Phase 07-player-profile]: Profile lookup by username column (not userId) — public URL uses /profile/:username
 - [Phase 07-player-profile]: balanceHistory.x serialized via .toISOString() — Drizzle returns Date objects, Recharts XAxis needs strings
+- [Phase 07-player-profile P02]: Profile link conditionally rendered only when both accessToken and username are truthy — prevents stale link on logout
+- [Phase 07-player-profile P02]: Sign In link shown in Header when logged out — replaces always-visible Sign Out button (bug fix)
+- [Phase 07-player-profile P02]: LeaderboardPage username wrapped in Link with color:inherit — preserves existing font-weight logic while adding navigation
 
 ### Pending Todos
 
@@ -180,6 +184,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-06T03:24:44.855Z
-Stopped at: Completed 07-01-PLAN.md
+Last session: 2026-03-06T03:52:21Z
+Stopped at: Completed 07-02-PLAN.md
 Resume file: None
