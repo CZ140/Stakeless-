@@ -8,6 +8,7 @@ import { walletRouter } from './routes/wallet.js';
 import { gamesRouter } from './routes/games.js';
 import { leaderboardRouter } from './routes/leaderboard.js';
 import { profileRouter } from './routes/profile.js';
+import { adminRouter } from './routes/admin.js';
 import { devRouter } from './routes/dev.js';
 
 export function createApp(): Express {
@@ -37,6 +38,7 @@ export function createApp(): Express {
   app.use('/api/games', gamesRouter);
   app.use('/api/leaderboard', leaderboardRouter);
   app.use('/api/profile', profileRouter);
+  app.use('/api/admin', adminRouter);
 
   // Dev-only routes — never registered in production
   if (process.env.NODE_ENV !== 'production') {
