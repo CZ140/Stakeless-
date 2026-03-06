@@ -1,5 +1,5 @@
 ---
-status: complete
+status: diagnosed
 phase: 08-admin-anti-cheat
 source: 08-01-SUMMARY.md, 08-02-SUMMARY.md, 08-03-SUMMARY.md, 08-04-SUMMARY.md
 started: 2026-03-06T00:00:00Z
@@ -74,5 +74,18 @@ skipped: 0
   reason: "User confirmed 429 is firing but frontend shows generic 'something went wrong please try again' instead of the actual error message"
   severity: major
   test: 2
-  artifacts: []
-  missing: []
+  root_cause: "Every game component catch block type-casts the error as { response?: { status?: number } } — no data field — so response.data.error is never read. Any non-402 status falls through to a hardcoded fallback string. Blackjack handleHit/handleStand use bare catch{} blocks with no error parameter at all."
+  artifacts:
+    - path: "apps/frontend/src/pages/MinesPage.tsx"
+      issue: "handleStart, handleTileClick, handleCashOut — status-only cast, no 429 branch"
+    - path: "apps/frontend/src/pages/RoulettePage.tsx"
+      issue: "handleSpin — data in type shape but never read in else branch"
+    - path: "apps/frontend/src/pages/PlinkoPage.tsx"
+      issue: "handleDrop — status-only cast, no 429 branch"
+    - path: "apps/frontend/src/pages/BlackjackPage.tsx"
+      issue: "handleDeal, handleDouble — status-only cast; handleHit, handleStand — bare catch{} blocks"
+  missing:
+    - "Extend type assertion to include data?: { error?: string } in all 8 catch blocks"
+    - "Replace hardcoded fallback with: setError(axiosErr.response?.data?.error ?? 'Something went wrong. Please try again.')"
+    - "Add err parameter to handleHit and handleStand bare catch blocks"
+  debug_session: ".planning/debug/429-error-message-not-displayed.md"
