@@ -56,20 +56,36 @@ export function Header() {
             Profile
           </Link>
         )}
-        <button
-          onClick={() => void signOut()}
-          style={{
-            background: 'none',
-            border: '1px solid rgba(255,255,255,0.3)',
-            color: '#ffffff',
-            cursor: 'pointer',
-            padding: '6px 14px',
-            borderRadius: '4px',
-            fontSize: '0.875rem',
-          }}
-        >
-          Sign Out
-        </button>
+        {accessToken ? (
+          <button
+            onClick={() => void signOut()}
+            style={{
+              background: 'none',
+              border: '1px solid rgba(255,255,255,0.3)',
+              color: '#ffffff',
+              cursor: 'pointer',
+              padding: '6px 14px',
+              borderRadius: '4px',
+              fontSize: '0.875rem',
+            }}
+          >
+            Sign Out
+          </button>
+        ) : (
+          <Link
+            to="/login"
+            style={{
+              color: '#e0d7ff',
+              textDecoration: 'none',
+              fontSize: '0.875rem',
+              padding: '6px 14px',
+              borderRadius: '4px',
+              border: '1px solid rgba(255,255,255,0.15)',
+            }}
+          >
+            Sign In
+          </Link>
+        )}
       </div>
     </header>
   );
