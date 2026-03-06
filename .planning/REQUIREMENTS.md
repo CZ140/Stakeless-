@@ -83,11 +83,11 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Admin Panel
 
-- [ ] **ADMIN-01**: Admin login is restricted to accounts with the admin role; role is verified against the database on every admin request (not trusted from JWT payload alone)
-- [ ] **ADMIN-02**: Admin dashboard displays: total registered users, total bets placed, total coins in circulation, most active users
-- [ ] **ADMIN-03**: Admin can search for a player by username and view their balance and game/wager history
-- [ ] **ADMIN-04**: Admin can ban a player account (immediately invalidates their active sessions)
-- [ ] **ADMIN-05**: All admin actions are recorded in an audit log (AdminID, Action, TargetUserID, Timestamp)
+- [x] **ADMIN-01**: Admin login is restricted to accounts with the admin role; role is verified against the database on every admin request (not trusted from JWT payload alone)
+- [x] **ADMIN-02**: Admin dashboard displays: total registered users, total bets placed, total coins in circulation, most active users
+- [x] **ADMIN-03**: Admin can search for a player by username and view their balance and game/wager history
+- [x] **ADMIN-04**: Admin can ban a player account (immediately invalidates their active sessions)
+- [x] **ADMIN-05**: All admin actions are recorded in an audit log (AdminID, Action, TargetUserID, Timestamp)
 
 ### Anti-Cheat
 
@@ -199,11 +199,11 @@ Which phases cover which requirements. Updated during roadmap creation.
 | PROF-01 | Phase 7 | Complete |
 | PROF-02 | Phase 7 | Complete |
 | PROF-03 | Phase 7 | Complete |
-| ADMIN-01 | Phase 8 | Pending |
-| ADMIN-02 | Phase 8 | Pending |
-| ADMIN-03 | Phase 8 | Pending |
-| ADMIN-04 | Phase 8 | Pending |
-| ADMIN-05 | Phase 8 | Pending |
+| ADMIN-01 | Phase 8 | Complete |
+| ADMIN-02 | Phase 8 | Complete |
+| ADMIN-03 | Phase 8 | Complete |
+| ADMIN-04 | Phase 8 | Complete |
+| ADMIN-05 | Phase 8 | Complete |
 | ANTI-01 | Phase 8 | Pending |
 | ANTI-02 | Phase 8 | Pending |
 | ANTI-03 | Phase 8 | Pending |
