@@ -3,6 +3,7 @@ import { LoginPage } from './pages/LoginPage';
 import { RegisterPage } from './pages/RegisterPage';
 import { ForgotPasswordPage } from './pages/ForgotPasswordPage';
 import { ResetPasswordPage } from './pages/ResetPasswordPage';
+import { ChooseUsernamePage } from './pages/ChooseUsernamePage';
 import { DashboardPage } from './pages/DashboardPage';
 import { RoulettePage } from './pages/RoulettePage';
 import { PlinkoPage } from './pages/PlinkoPage';
@@ -22,6 +23,14 @@ export default function App() {
       <Route path="/register" element={<RegisterPage />} />
       <Route path="/forgot-password" element={<ForgotPasswordPage />} />
       <Route path="/reset-password" element={<ResetPasswordPage />} />
+      <Route
+        path="/welcome"
+        element={
+          <ProtectedRoute>
+            <ChooseUsernamePage />
+          </ProtectedRoute>
+        }
+      />
       <Route
         path="/"
         element={

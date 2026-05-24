@@ -65,13 +65,14 @@ export function GoogleSignInButton({ text = 'continue_with', onError }: Props) {
         return;
       }
       try {
-        const res = await axios.post<{ accessToken: string }>(
+        const res = await axios.post<{ accessToken: string; isNewUser?: boolean }>(
           '/api/auth/google',
           { credential: response.credential },
           { withCredentials: true },
         );
         signIn(res.data.accessToken);
-        navigate('/', { replace: true });
+        // Brand-new Google accounts pick a username before entering the app.
+        navigate(res.data.isNewUser ? '/welcome' : '/', { replace: true });
       } catch (err: unknown) {
         const msg = (err as { response?: { data?: { error?: string } } }).response?.data?.error;
         onError?.(msg ?? 'Google sign-in failed. Please try again.');

@@ -34,6 +34,7 @@ function PerksStrip() {
 
 export function RegisterPage() {
   const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [success, setSuccess] = useState(false);
@@ -46,11 +47,15 @@ export function RegisterPage() {
     setServerError('');
     setLoading(true);
     try {
-      await axios.post('/api/auth/register', { email, password });
+      await axios.post('/api/auth/register', { email, username, password });
       setSuccess(true);
     } catch (err: unknown) {
-      const data = (err as { response?: { data?: { issues?: { field: string; message: string }[] } } }).response?.data;
-      if (data?.issues) {
+      const ax = err as { response?: { status?: number; data?: { error?: string; issues?: { field: string; message: string }[] } } };
+      const data = ax.response?.data;
+      if (ax.response?.status === 409) {
+        // Username already taken — surface it on the username field.
+        setFieldErrors({ username: data?.error ?? 'That username is already taken' });
+      } else if (data?.issues) {
         const errs: Record<string, string> = {};
         for (const issue of data.issues) errs[issue.field] = issue.message;
         setFieldErrors(errs);
@@ -97,6 +102,16 @@ export function RegisterPage() {
               onChange={(e) => setEmail(e.target.value)} required autoComplete="email"
             />
             {fieldErrors['email'] && <div style={{ color: 'var(--loss)', fontSize: 12, marginTop: 6 }}>{fieldErrors['email']}</div>}
+          </div>
+
+          <div className="field">
+            <div className="field-row"><label className="label" htmlFor="username">Username</label></div>
+            <input
+              id="username" className="input" type="text" value={username}
+              onChange={(e) => setUsername(e.target.value)} required autoComplete="username"
+              minLength={3} maxLength={20} placeholder="3–20 letters, numbers, underscores"
+            />
+            {fieldErrors['username'] && <div style={{ color: 'var(--loss)', fontSize: 12, marginTop: 6 }}>{fieldErrors['username']}</div>}
           </div>
 
           <div className="field">

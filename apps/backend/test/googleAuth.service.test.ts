@@ -21,9 +21,10 @@ describe('loginWithGoogle', () => {
   beforeEach(resetDb);
 
   it('creates a passwordless account for a brand-new Google user', async () => {
-    const { accessToken, rawRefreshToken } = await loginWithGoogle(profile());
+    const { accessToken, rawRefreshToken, isNewUser } = await loginWithGoogle(profile());
     expect(accessToken).toBeTruthy();
     expect(rawRefreshToken).toBeTruthy();
+    expect(isNewUser).toBe(true); // fresh account → routes to the username step
 
     const [row] = await db.select().from(users).where(eq(users.googleId, 'google-sub-123'));
     expect(row).toBeDefined();
@@ -38,8 +39,10 @@ describe('loginWithGoogle', () => {
   });
 
   it('reuses the same account for a returning Google user', async () => {
-    await loginWithGoogle(profile());
-    await loginWithGoogle(profile());
+    const first = await loginWithGoogle(profile());
+    const second = await loginWithGoogle(profile());
+    expect(first.isNewUser).toBe(true);
+    expect(second.isNewUser).toBe(false); // returning user — no username step
 
     const all = await db.select().from(users);
     expect(all).toHaveLength(1); // no duplicate account
@@ -52,7 +55,8 @@ describe('loginWithGoogle', () => {
   it('links Google onto an existing email account with the same verified email', async () => {
     const { user } = await createUser({ email: 'existing@gmail.com', googleId: null });
 
-    await loginWithGoogle(profile({ email: 'existing@gmail.com' }));
+    const result = await loginWithGoogle(profile({ email: 'existing@gmail.com' }));
+    expect(result.isNewUser).toBe(false); // linked to an existing account — no username step
 
     const all = await db.select().from(users);
     expect(all).toHaveLength(1); // linked, not duplicated

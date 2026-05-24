@@ -36,7 +36,15 @@ async function deriveUsername(emailPrefix: string): Promise<string> {
   return `user_${Date.now()}`;
 }
 
-export async function register(email: string, password: string): Promise<void> {
+export async function register(email: string, password: string, username: string): Promise<void> {
+  // Username uniqueness is enforced case-insensitively and surfaced to the user
+  // (so they can pick another) — unlike email existence, which stays silent to
+  // avoid enumeration. Checked first so a taken username always wins.
+  const [clash] = await db.select({ id: users.id }).from(users)
+    .where(sql`lower(${users.username}) = lower(${username})`)
+    .limit(1);
+  if (clash) throw Object.assign(new Error('Username taken'), { code: 'USERNAME_TAKEN' });
+
   // Check for duplicate email — return generic error to avoid email enumeration
   const existing = await db.select({ id: users.id }).from(users)
     .where(eq(users.email, email.toLowerCase()))
@@ -48,8 +56,6 @@ export async function register(email: string, password: string): Promise<void> {
   }
 
   const passwordHash = await bcrypt.hash(password, 12);
-  const emailPrefix = email.split('@')[0] ?? 'user';
-  const username = await deriveUsername(emailPrefix);
 
   // No email-verification step — accounts are usable the moment they're created
   // (this is a play-money app with no real stakes, so we don't gate on a verified
@@ -117,16 +123,18 @@ export async function login(
 // the two so both sign-in methods share one account; (3) a brand-new social
 // signup with no local password. Google accounts skip our email-verification
 // step because Google has already confirmed the address.
+// isNewUser is true only for branch (3) — a freshly created account — so the
+// frontend can route those users through the one-time "choose a username" step.
 export async function loginWithGoogle(
   profile: GoogleProfile,
-): Promise<{ accessToken: string; rawRefreshToken: string }> {
+): Promise<{ accessToken: string; rawRefreshToken: string; isNewUser: boolean }> {
   const bannedErr = Object.assign(new Error('Account banned'), { code: 'ACCOUNT_BANNED' });
 
   // 1. Returning Google user.
   const [byGoogle] = await db.select().from(users).where(eq(users.googleId, profile.googleId)).limit(1);
   if (byGoogle) {
     if (byGoogle.isBanned) throw bannedErr;
-    return issueSession(byGoogle.id);
+    return { ...(await issueSession(byGoogle.id)), isNewUser: false };
   }
 
   // 2. Existing account with the same email — link Google onto it.
@@ -141,7 +149,7 @@ export async function loginWithGoogle(
     await db.update(users)
       .set({ googleId: profile.googleId, isEmailVerified: true })
       .where(eq(users.id, byEmail.id));
-    return issueSession(byEmail.id);
+    return { ...(await issueSession(byEmail.id)), isNewUser: false };
   }
 
   // 3. Brand-new social signup — no local password.
@@ -157,7 +165,7 @@ export async function loginWithGoogle(
   }).returning({ id: users.id });
 
   if (!newUser) throw new Error('Failed to create user');
-  return issueSession(newUser.id);
+  return { ...(await issueSession(newUser.id)), isNewUser: true };
 }
 
 export async function refreshToken(

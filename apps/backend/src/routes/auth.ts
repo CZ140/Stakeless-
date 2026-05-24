@@ -11,17 +11,29 @@ export const authRouter: IRouter = Router();
 
 const registerSchema = z.object({
   email: z.string().email('Must be a valid email address'),
+  username: z
+    .string()
+    .trim()
+    .min(3, 'Username must be at least 3 characters')
+    .max(20, 'Username must be at most 20 characters')
+    .regex(/^[A-Za-z0-9_]+$/, 'Use only letters, numbers and underscores'),
   password: z.string().min(8, 'Password must be at least 8 characters'),
 });
 
 // POST /api/auth/register
 authRouter.post('/register', authLimiter, validate(registerSchema), async (req, res) => {
   try {
-    await register(req.body.email as string, req.body.password as string);
+    await register(req.body.email as string, req.body.password as string, req.body.username as string);
     res.status(201).json({ message: 'Registration successful. You can sign in now.' });
   } catch (err: unknown) {
-    if (err instanceof Error && (err as NodeJS.ErrnoException & { code?: string }).code === 'DUPLICATE_EMAIL') {
-      // Return same 201 to avoid email enumeration — attacker cannot distinguish new vs existing email
+    const code = (err as { code?: string }).code;
+    if (code === 'USERNAME_TAKEN') {
+      // Surfaced (unlike duplicate email) so the user can pick another name.
+      res.status(409).json({ error: 'That username is already taken' });
+      return;
+    }
+    if (code === 'DUPLICATE_EMAIL') {
+      // Return the same 201 to avoid email enumeration — attacker cannot distinguish new vs existing email
       res.status(201).json({ message: 'Registration successful. You can sign in now.' });
       return;
     }
@@ -78,7 +90,7 @@ const googleAuthSchema = z.object({
 authRouter.post('/google', authLimiter, validate(googleAuthSchema), async (req, res) => {
   try {
     const profile = await verifyGoogleCredential(req.body.credential as string);
-    const { accessToken, rawRefreshToken } = await loginWithGoogle(profile);
+    const { accessToken, rawRefreshToken, isNewUser } = await loginWithGoogle(profile);
 
     res.cookie('refreshToken', rawRefreshToken, {
       httpOnly: true,
@@ -88,7 +100,8 @@ authRouter.post('/google', authLimiter, validate(googleAuthSchema), async (req, 
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
 
-    res.json({ accessToken });
+    // isNewUser tells the client to route a fresh signup through the username step.
+    res.json({ accessToken, isNewUser });
   } catch (err: unknown) {
     const code = (err as { code?: string }).code;
     if (code === 'GOOGLE_NOT_CONFIGURED') {
