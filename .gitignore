@@ -8,3 +8,11 @@ dist/
 
 # Internal planning / spec artifacts (kept local, not published)
 .planning/
+
+.design-handoff
+.claude
+design-prompts/
+auth-design.gz
+
+# Internal planning scratch (kept local, not published)
+THE_NEXT_STEP.txt
