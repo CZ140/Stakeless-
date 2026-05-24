@@ -23,6 +23,23 @@ function WheelSvg() {
   const hubInner = 90;
   const N = SEQUENCE.length;
 
+  // 8-point star for the hub centre. Rotation-symmetric (unlike the old "V"
+  // wordmark, which read upside-down for half of every spin) and echoes the 8
+  // hub spokes. 16 alternating outer/inner vertices.
+  const starPath = (() => {
+    const points = 8;
+    const outerR = 50;
+    const innerR = 20;
+    let d = '';
+    for (let i = 0; i < points * 2; i++) {
+      const r = i % 2 === 0 ? outerR : innerR;
+      const a = (i / (points * 2)) * Math.PI * 2 - Math.PI / 2;
+      const { x, y } = polar(cx, cy, a, r);
+      d += `${i === 0 ? 'M' : 'L'} ${x.toFixed(2)} ${y.toFixed(2)} `;
+    }
+    return `${d}Z`;
+  })();
+
   const segs = SEQUENCE.map((num, idx) => {
     const a1 = (idx / N) * Math.PI * 2 - Math.PI / 2;
     const a2 = ((idx + 1) / N) * Math.PI * 2 - Math.PI / 2;
@@ -41,7 +58,7 @@ function WheelSvg() {
   });
 
   return (
-    <svg className="roulette-wheel" viewBox="0 0 1600 1600" xmlns="http://www.w3.org/2000/svg">
+    <svg className="roulette-wheel" viewBox="-40 -40 1680 1680" overflow="visible" xmlns="http://www.w3.org/2000/svg">
       <defs>
         <radialGradient id="aw-rim-outer" cx="50%" cy="50%" r="50%">
           <stop offset="86%" stopColor="#1a120a" />
@@ -115,10 +132,7 @@ function WheelSvg() {
       <circle cx={cx} cy={cy} r={hubInner + 10} fill="#06080c" />
       <circle cx={cx} cy={cy} r={hubInner + 4} fill="url(#aw-hub-gold)" />
       <circle cx={cx} cy={cy} r={hubInner - 6} fill="#0a0d12" />
-      <path
-        d={`M ${cx - 38} ${cy - 38} L ${cx} ${cy + 44} L ${cx + 38} ${cy - 38} L ${cx + 20} ${cy - 38} L ${cx} ${cy + 18} L ${cx - 20} ${cy - 38} Z`}
-        fill="#d4a857"
-      />
+      <path d={starPath} fill="#d4a857" />
       <circle cx={cx} cy={cy} r={pocketOuter + 30} fill="none" stroke="rgba(255,255,255,0.04)" strokeWidth="40" />
     </svg>
   );
@@ -126,7 +140,7 @@ function WheelSvg() {
 
 function WheelShine() {
   return (
-    <svg className="wheel-shine" viewBox="0 0 1600 1600" xmlns="http://www.w3.org/2000/svg">
+    <svg className="wheel-shine" viewBox="-40 -40 1680 1680" overflow="visible" xmlns="http://www.w3.org/2000/svg">
       <defs>
         <radialGradient id="aw-shine-hi" cx="22%" cy="18%" r="55%">
           <stop offset="0%" stopColor="rgba(255,255,255,0.22)" />
@@ -147,10 +161,10 @@ function WheelShine() {
         </clipPath>
       </defs>
       <g clipPath="url(#aw-disc-clip)">
-        <rect width="1600" height="1600" fill="url(#aw-shine-hi)" />
-        <rect width="1600" height="1600" fill="url(#aw-shine-lo)" />
+        <rect x="-40" y="-40" width="1680" height="1680" fill="url(#aw-shine-hi)" />
+        <rect x="-40" y="-40" width="1680" height="1680" fill="url(#aw-shine-lo)" />
       </g>
-      <rect width="1600" height="1600" fill="url(#aw-rim-light)" />
+      <rect x="-40" y="-40" width="1680" height="1680" fill="url(#aw-rim-light)" />
     </svg>
   );
 }
