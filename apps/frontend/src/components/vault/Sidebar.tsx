@@ -44,9 +44,9 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
         <BrandMark size={32} />
         <div>
           <div className="brand-word">
-            V<em>·</em>Casino
+            Stake<em>less</em>
           </div>
-          <div className="brand-tag">vault edition</div>
+          <div className="brand-tag">no real stakes</div>
         </div>
       </NavLink>
 

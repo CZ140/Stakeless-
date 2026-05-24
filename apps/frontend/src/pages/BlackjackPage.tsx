@@ -200,7 +200,7 @@ export function BlackjackPage() {
       <div className="game-layout">
         <div className="game-stage" style={{ padding: 14 }}>
           <div className="felt">
-            <div className="felt-label">VCASINO · BLACKJACK</div>
+            <div className="felt-label">STAKELESS · BLACKJACK</div>
 
             {/* Dealer */}
             <div className="hand-row">

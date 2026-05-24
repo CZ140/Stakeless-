@@ -14,8 +14,8 @@ export function AuthLayout({ children, aside }: { children: ReactNode; aside?: R
         <div className="auth-brand">
           <BrandMark size={38} />
           <div>
-            <div className="brand-word">V<em>·</em>Casino</div>
-            <div className="brand-tag">vault edition</div>
+            <div className="brand-word">Stake<em>less</em></div>
+            <div className="brand-tag">no real stakes</div>
           </div>
         </div>
         <div className="status-strip">

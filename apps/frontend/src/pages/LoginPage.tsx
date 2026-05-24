@@ -84,7 +84,7 @@ export function LoginPage() {
         </form>
 
         <div className="auth-foot-link">
-          New to VCasino? <Link to="/register">Create an account →</Link>
+          New to Stakeless? <Link to="/register">Create an account →</Link>
         </div>
       </div>
     </AuthLayout>

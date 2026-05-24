@@ -1,6 +1,6 @@
 /* ============================================================
    VAULT — design system
-   Ported from the VCasino "Vault Edition" design handoff.
+   Ported from the "Vault Edition" design handoff.
    Adaptations for the real app:
      • body no longer sets `overflow: hidden` — pages not yet
        migrated into <AppShell> keep normal document scrolling.

@@ -1,4 +1,4 @@
-// Inline SVG icon set — geometric, custom-drawn for the VCasino "Vault" design.
+// Inline SVG icon set — geometric, custom-drawn for the "Vault" design system.
 // Ported from the design handoff (icons.jsx) to typed React components.
 // Stroke icons use currentColor + 1.6 strokeWidth so they inherit text color.
 import type { ReactElement } from 'react';
