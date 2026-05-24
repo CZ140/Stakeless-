@@ -125,6 +125,18 @@ export function PlinkoPage() {
   const [inFlight, setInFlight] = useState(0);
   const [results, setResults] = useState<ResultChip[]>([]);
 
+  // On phones the recent-hits strip is cramped — show only the last few drops.
+  const [isNarrow, setIsNarrow] = useState(
+    () => typeof window !== 'undefined' && window.matchMedia('(max-width: 600px)').matches,
+  );
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 600px)');
+    const onChange = (e: MediaQueryListEvent) => setIsNarrow(e.matches);
+    mq.addEventListener('change', onChange);
+    return () => mq.removeEventListener('change', onChange);
+  }, []);
+  const visibleResults = results.slice(0, isNarrow ? 3 : 12);
+
   const boardRef = useRef<PlinkoBoardHandle>(null);
   const idRef = useRef(0);
   const queueRef = useRef(0); // drops still to fire
@@ -157,7 +169,7 @@ export function PlinkoPage() {
     } catch (err: unknown) {
       const ax = err as { response?: { data?: { error?: string }; status?: number } };
       if (ax.response?.status === 402) setError('Insufficient funds.');
-      else if (ax.response?.status === 429) { /* too fast — drop skipped silently */ }
+      else if (ax.response?.status === 429) setError('Whoa — too many drops too fast. Give it a moment and try again.');
       else setError(ax.response?.data?.error ?? 'Something went wrong. Please try again.');
       return false;
     }
@@ -228,7 +240,7 @@ export function PlinkoPage() {
           <div className="history-strip" style={{ margin: 0, width: '100%', justifyContent: 'center', background: 'transparent', borderTop: 'none', minHeight: 34 }}>
             <span className="label">recent</span>
             {results.length === 0 && <span style={{ color: 'var(--text-muted)', fontSize: 11 }}>No drops yet</span>}
-            {results.map((r) => (
+            {visibleResults.map((r) => (
               <span
                 key={r.id}
                 className="num"

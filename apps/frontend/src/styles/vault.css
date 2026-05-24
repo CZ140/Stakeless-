@@ -928,6 +928,9 @@ body::before {
    Roulette
    ============================================================ */
 .roulette-stage { display: flex; flex-direction: column; align-items: center; gap: 28px; }
+/* Fixed-size (400px) wheel lives inside a scaler so it can be shrunk on small
+   screens via transform without rewriting all its hard-coded pixel geometry. */
+.roulette-wheel-scaler { width: 400px; height: 400px; margin: 0 auto; flex-shrink: 0; }
 .bet-board {
   width: 100%;
   display: grid;
@@ -1776,6 +1779,12 @@ body::before {
   /* Blackjack felt: tighter padding + smaller cards. */
   .felt { padding: 18px; }
   .playing-card { width: 72px; height: 102px; }
+
+  /* Dashboard recent-activity rows were cramped at 5 columns — drop the time
+     and multiplier, keep icon + description + result. */
+  .activity-row { grid-template-columns: 28px 1fr auto; gap: 10px; }
+  .activity-row .time,
+  .activity-row .mult { display: none; }
 }
 
 /* Roulette bet board: compress fixed columns + type so 0–36 fit a phone.
@@ -1789,4 +1798,10 @@ body::before {
      net so an unusually wide board scrolls inside the stage rather than
      pushing the whole page sideways. */
   .game-stage { padding: 16px; min-height: 0; overflow-x: auto; }
+
+  /* Shrink the 400px roulette wheel to ~300px so it fits a phone column.
+     transform-origin top-left scales it into the resized scaler box, so the
+     layout footprint shrinks too — no horizontal scroll. */
+  .roulette-wheel-scaler { width: 300px; height: 300px; }
+  .roulette-wheel-root { transform: scale(0.75); transform-origin: top left; }
 }

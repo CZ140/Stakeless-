@@ -85,7 +85,8 @@ export function RouletteWheel({ winningPocket, onSettled }: RouletteWheelProps) 
   }, { dependencies: [winningPocket] });
 
   return (
-    <div style={{ position: 'relative', width: '400px', height: '400px', margin: '0 auto' }}>
+    <div className="roulette-wheel-scaler">
+    <div className="roulette-wheel-root" style={{ position: 'relative', width: '400px', height: '400px' }}>
       {/* Top marker */}
       <div style={{
         position: 'absolute', top: '-4px', left: '50%',
@@ -174,6 +175,7 @@ export function RouletteWheel({ winningPocket, onSettled }: RouletteWheelProps) 
           }}
         />
       </div>
+    </div>
     </div>
   );
 }
