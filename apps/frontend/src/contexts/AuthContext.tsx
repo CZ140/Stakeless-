@@ -11,6 +11,7 @@ import axios from 'axios';
 import { setAccessToken } from '../api/client';
 import { apiClient } from '../api/client';
 import { useBalanceStore } from '../stores/balanceStore';
+import { useTierCelebrationStore, type TierUp } from '../stores/tierCelebrationStore';
 import { socket } from '../socket';
 
 interface AuthState {
@@ -40,10 +41,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setAccessToken(res.data.accessToken);
         setState({ accessToken: res.data.accessToken, username: null, isLoading: false, sessionExpired: false });
         // Fetch profile to initialize balance
-        return apiClient.get<{ balance: number; username: string }>('/auth/me');
+        return apiClient.get<{ balance: number; username: string; tierLevel: number }>('/auth/me');
       })
       .then((meRes) => {
         useBalanceStore.getState().setBalance(meRes.data.balance);
+        useBalanceStore.getState().setTierLevel(meRes.data.tierLevel);
         setState(prev => ({ ...prev, username: meRes.data.username as string }));
       })
       .catch(() => {
@@ -56,9 +58,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (state.accessToken !== null && prevTokenRef.current === null) {
       // Token just became available — fetch profile for balance
       apiClient
-        .get<{ balance: number; username: string }>('/auth/me')
+        .get<{ balance: number; username: string; tierLevel: number }>('/auth/me')
         .then((res) => {
           useBalanceStore.getState().setBalance(res.data.balance);
+          useBalanceStore.getState().setTierLevel(res.data.tierLevel);
           setState(prev => ({ ...prev, username: res.data.username as string }));
         })
         .catch(() => {
@@ -98,6 +101,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       socket.off('balance:update', onBalanceUpdate);
     };
   }, []); // empty deps — socket singleton is stable
+
+  // Tier-up push: a settled round vaulted the player into a new tier. Refresh the
+  // chip's tier flair and fire the celebration overlay (any page).
+  useEffect(() => {
+    function onTierUp(data: TierUp) {
+      useBalanceStore.getState().setTierLevel(data.level);
+      useTierCelebrationStore.getState().celebrate(data);
+    }
+    socket.on('tier:up', onTierUp);
+    return () => {
+      socket.off('tier:up', onTierUp);
+    };
+  }, []);
 
   const signIn = useCallback((token: string) => {
     setAccessToken(token);

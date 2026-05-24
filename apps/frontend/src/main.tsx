@@ -4,6 +4,7 @@ import { BrowserRouter } from 'react-router-dom';
 import { Toaster } from 'sonner';
 import './styles/vault.css';
 import { AuthProvider } from './contexts/AuthContext';
+import { TierUpModal } from './components/vault/TierUpModal';
 import App from './App.tsx';
 import { apiClient } from './api/client';
 import { useBalanceStore } from './stores/balanceStore';
@@ -25,6 +26,7 @@ createRoot(rootElement).render(
     <BrowserRouter>
       <AuthProvider>
         <Toaster position="top-right" richColors />
+        <TierUpModal />
         <App />
       </AuthProvider>
     </BrowserRouter>

@@ -19,6 +19,9 @@ export const users = pgTable('users', {
   totalProfit: bigint('total_profit', { mode: 'number' }).notNull().default(0),
   totalLoss: bigint('total_loss', { mode: 'number' }).notNull().default(0),
   role: varchar('role', { length: 20 }).notNull().default('player'),
+  // Highest tier reached, derived from totalWagered but persisted so a one-time
+  // tier-up reward fires exactly once when a player crosses each threshold.
+  tierLevel: integer('tier_level').notNull().default(0),
   lastBonusClaimedAt: timestamp('last_bonus_claimed_at'),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   lastLoginAt: timestamp('last_login_at'),

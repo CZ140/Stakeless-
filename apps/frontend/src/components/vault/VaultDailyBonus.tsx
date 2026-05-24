@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { toast } from 'sonner';
+import { tierByLevel } from '@gambling/shared';
 import { apiClient } from '../../api/client';
 import { useBalanceStore } from '../../stores/balanceStore';
 import { CoinIcon, ZapIcon } from './icons';
@@ -11,14 +12,13 @@ interface Props {
 interface BonusClaimResponse {
   newBalance: number;
   nextClaimAt: string;
+  amount: number;
 }
 
 interface BonusErrorResponse {
   error: string;
   msUntilNext: number;
 }
-
-const BONUS_AMOUNT = 100;
 
 function formatCountdown(ms: number): string {
   const totalSeconds = Math.max(0, Math.floor(ms / 1000));
@@ -41,6 +41,10 @@ export function VaultDailyBonus({ dailyBonusTimestamp }: Props) {
   const [claiming, setClaiming] = useState(false);
   const [nextClaimAt, setNextClaimAt] = useState<string | null>(() => computeNextClaimAt(dailyBonusTimestamp));
   const [countdown, setCountdown] = useState('');
+  // The banner previews the player's tier-scaled amount; the claim response is
+  // authoritative for the actual credit (and the toast).
+  const tierLevel = useBalanceStore((s) => s.tierLevel);
+  const bonusAmount = tierByLevel(tierLevel ?? 0).dailyBonus;
 
   // Keep local cooldown in sync once the profile fetch resolves.
   useEffect(() => {
@@ -72,7 +76,7 @@ export function VaultDailyBonus({ dailyBonusTimestamp }: Props) {
       const res = await apiClient.post<BonusClaimResponse>('/wallet/bonus');
       useBalanceStore.getState().setBalance(res.data.newBalance);
       setNextClaimAt(res.data.nextClaimAt);
-      toast.success(`Bonus claimed! +${BONUS_AMOUNT} coins`);
+      toast.success(`Bonus claimed! +${res.data.amount.toLocaleString()} coins`);
     } catch (error: unknown) {
       const axiosError = error as { response?: { status: number; data?: BonusErrorResponse } };
       if (axiosError.response?.status === 429 && axiosError.response.data?.msUntilNext) {
@@ -97,9 +101,9 @@ export function VaultDailyBonus({ dailyBonusTimestamp }: Props) {
       <div className="bonus-content">
         <div className="bonus-eyebrow">Daily Bonus</div>
         <div className="bonus-title">
-          Claim your <span className="bonus-amount">{BONUS_AMOUNT}</span> daily coins
+          Claim your <span className="bonus-amount">{bonusAmount.toLocaleString()}</span> daily coins
         </div>
-        <div className="bonus-sub">Free virtual coins · resets every 24 hours</div>
+        <div className="bonus-sub">{tierByLevel(tierLevel ?? 0).name} tier · resets every 24 hours</div>
       </div>
       <div className="bonus-cta">
         {onCooldown ? (

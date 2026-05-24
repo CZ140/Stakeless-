@@ -1,12 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
 import { useBalanceStore } from '../../stores/balanceStore';
 import { CoinIcon } from './icons';
+import { TierBadge } from './TierBadge';
 
 // Header balance pill. Reads the real balance store and flashes a floating
 // delta (+/-) whenever the balance changes — e.g. after a settled bet pushes
 // a `balance:update` over the socket, or a claimed daily bonus.
 export function BalanceChip() {
   const balance = useBalanceStore((s) => s.balance);
+  const tierLevel = useBalanceStore((s) => s.tierLevel);
   const prev = useRef<number | null>(null);
   const [delta, setDelta] = useState<number | null>(null);
 
@@ -28,6 +30,7 @@ export function BalanceChip() {
 
   return (
     <div className="balance-chip" aria-label="Coin balance">
+      {tierLevel !== null && <TierBadge level={tierLevel} size={14} className="chip-tier" />}
       <span className="coin">
         <CoinIcon size={22} />
       </span>

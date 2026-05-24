@@ -73,29 +73,60 @@
  *         err.msUntilNext ≈ 12 * 60 * 60 * 1000 (±1s tolerance)
  *
  * Mock:
- *   tx.select()... resolves to [{ id: 1, balance: 1000, lastBonusClaimedAt: <12h ago> }]
+ *   tx.select()... resolves to [{ id: 1, balance: 1000, totalWagered: 0, lastBonusClaimedAt: <12h ago> }]
  */
 
 /**
- * SHOULD credit BONUS_AMOUNT (100) when lastBonusClaimedAt is null
+ * SHOULD credit the tier-scaled daily bonus when lastBonusClaimedAt is null
  *
- * Setup:  user.lastBonusClaimedAt = null, user.balance = 1000
- * Expect: { newBalance: 1100, nextClaimAt: <ISO string ~24h from now> }
+ * The amount is tierForWagered(totalWagered).dailyBonus — Bronze 100 … Obsidian
+ * 1000 — not a fixed constant. A brand-new player (totalWagered 0) is Bronze, so
+ * the credit is 100.
+ *
+ * Setup:  user.lastBonusClaimedAt = null, user.balance = 1000, totalWagered = 0
+ * Expect: { newBalance: 1100, nextClaimAt: <ISO ~24h>, amount: 100 }
  *         tx.update called with { balance: 1100, lastBonusClaimedAt: <Date> }
  *         dailyBonusClaims insert called with { userId: 1, amount: 100 }
  *
  * Mock:
- *   tx.select()... resolves to [{ id: 1, balance: 1000, lastBonusClaimedAt: null }]
+ *   tx.select()... resolves to [{ id: 1, balance: 1000, totalWagered: 0, lastBonusClaimedAt: null }]
  */
 
 /**
- * SHOULD credit BONUS_AMOUNT (100) when lastBonusClaimedAt is exactly 24h+ ago
+ * SHOULD credit the higher tier bonus for a high-wager player
  *
- * Setup:  user.lastBonusClaimedAt = new Date(Date.now() - 25 * 60 * 60 * 1000) (25h ago)
- * Expect: { newBalance: user.balance + 100 }
+ * Setup:  totalWagered = 200000 (Gold), balance = 5000, lastBonusClaimedAt = null
+ * Expect: { newBalance: 5250, amount: 250 } — Gold dailyBonus is 250
  *
  * Mock:
- *   tx.select()... resolves to [{ id: 1, balance: 900, lastBonusClaimedAt: <25h ago> }]
+ *   tx.select()... resolves to [{ id: 1, balance: 5000, totalWagered: 200000, lastBonusClaimedAt: null }]
+ */
+
+// ─── Test: reconcileTier ──────────────────────────────────────────────────────
+
+/**
+ * SHOULD grant the one-time reward and bump tier_level when totalWagered crosses a threshold
+ *
+ * Setup:  stored tier_level = 0, totalWagered = 30000 (now Silver, level 1), balance = 800
+ * Expect: returns { fromLevel: 0, toLevel: 1, name: 'Silver', reward: 1500, dailyBonus: 150, newBalance: 2300 }
+ *         tx.update called with { tierLevel: 1, balance: 2300 }
+ *
+ * Mock:
+ *   tx.select()... resolves to [{ balance: 800, totalWagered: 30000, tierLevel: 0 }]
+ */
+
+/**
+ * SHOULD sum rewards when a single round vaults more than one tier
+ *
+ * Setup:  stored tier_level = 0, totalWagered = 160000 (Gold, level 2), balance = 0
+ * Expect: reward = 1500 (Silver) + 8000 (Gold) = 9500; toLevel 2; newBalance 9500
+ */
+
+/**
+ * SHOULD return null (no-op, no double-grant) when tier_level already matches
+ *
+ * Setup:  stored tier_level = 2, totalWagered = 200000 (still Gold, level 2)
+ * Expect: returns null; no tx.update
  */
 
 export {};

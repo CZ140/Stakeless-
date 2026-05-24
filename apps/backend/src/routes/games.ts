@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { requireAuth } from '../middleware/requireAuth.js';
 import { gameLimiter } from '../middleware/rateLimiter.js';
 import { clickInterval } from '../middleware/clickInterval.js';
-import { deductBet, settleBet } from '../services/walletService.js';
+import { deductBet, settleBet, reconcileTier } from '../services/walletService.js';
 import { resolveRouletteBets } from '../services/rouletteService.js';
 import { resolvePlinko, rollPlinkoBucket } from '../services/plinkoService.js';
 import {
@@ -32,6 +32,28 @@ import { eq, and, isNull, desc } from 'drizzle-orm';
 import { io } from '../socket/index.js';
 
 export const gamesRouter: IRouter = Router();
+
+// After a round settles, bring the player's tier in line with their new lifetime
+// wager. If they crossed a threshold, the reward was already credited inside
+// reconcileTier — push the updated balance again (so the chip flashes the bonus)
+// and a tier:up event the client turns into a celebration. Best-effort: a tier
+// reconcile failure must never fail the bet the player already won/lost.
+async function applyTierUp(userId: number): Promise<void> {
+  try {
+    const tierUp = await reconcileTier(userId);
+    if (tierUp) {
+      io.to(`user:${userId}`).emit('balance:update', { balance: tierUp.newBalance });
+      io.to(`user:${userId}`).emit('tier:up', {
+        level: tierUp.toLevel,
+        name: tierUp.name,
+        reward: tierUp.reward,
+        dailyBonus: tierUp.dailyBonus,
+      });
+    }
+  } catch (err) {
+    console.error('[games] tier reconcile error:', err);
+  }
+}
 
 // European wheel pocket sequence (clockwise from 12 o'clock, pocket 0 at top)
 const WHEEL_SEQUENCE = [
@@ -98,6 +120,7 @@ gamesRouter.post('/roulette/bet', gameLimiter, clickInterval, requireAuth, async
     );
 
     io.to(`user:${userId}`).emit('balance:update', { balance: newBalance });
+    await applyTierUp(userId);
     res.json({ winningPocket, profit, newBalance });
   } catch (err: unknown) {
     const code = (err as { code?: string }).code;
@@ -146,6 +169,7 @@ gamesRouter.post('/plinko/bet', gameLimiter, clickInterval, requireAuth, async (
     const grossPayout = Math.floor(betAmount * multiplier);
     const { newBalance } = await settleBet(userId, grossPayout, betAmount, `bucket_${bucket}`, 'plinko');
     io.to(`user:${userId}`).emit('balance:update', { balance: newBalance });
+    await applyTierUp(userId);
     // net profit shown to player = gross payout - stake (stake was already deducted)
     res.json({ bucket, multiplier, profit: grossPayout - betAmount, newBalance });
   } catch (err: unknown) {
@@ -286,6 +310,7 @@ gamesRouter.post('/mines/tile', gameLimiter, clickInterval, requireAuth, async (
 
       const { newBalance } = await settleBet(userId, 0, session.betAmount, 'exploded', 'mines');
       io.to(`user:${userId}`).emit('balance:update', { balance: newBalance });
+      await applyTierUp(userId);
 
       res.json({ hit: true, mineGrid: state.grid });
       return;
@@ -375,6 +400,7 @@ gamesRouter.post('/mines/cashout', gameLimiter, clickInterval, requireAuth, asyn
     );
 
     io.to(`user:${userId}`).emit('balance:update', { balance: newBalance });
+    await applyTierUp(userId);
     res.json({ payout, newBalance, mineGrid: state.grid });
   } catch (err: unknown) {
     console.error('[games] mines cashout error:', err);
@@ -501,6 +527,7 @@ async function settleBlackjack(
     .set({ state: JSON.stringify(state), completedAt: new Date() })
     .where(eq(gameSessions.id, sessionId));
   io.to(`user:${userId}`).emit('balance:update', { balance: newBalance });
+  await applyTierUp(userId);
   return newBalance;
 }
 

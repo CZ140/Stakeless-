@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useParams } from 'react-router-dom';
 import { AppShell } from '../components/vault/AppShell';
-import { gameIcons, CoinIcon, TrophyIcon } from '../components/vault/icons';
+import { gameIcons, CoinIcon, TrophyIcon, ZapIcon } from '../components/vault/icons';
+import { TierBadge, tierColor } from '../components/vault/TierBadge';
 import { apiClient } from '../api/client';
+import { TIERS } from '@gambling/shared';
 
 // ─── Types (mirror GET /profile/:username) ──────────────────────────────────────
 interface DailyRow { date: string; pnl: number; wagered: number; games: number; }
@@ -34,15 +36,6 @@ interface ActivityRow {
 const GAME_LABEL: Record<string, string> = { roulette: 'Roulette', plinko: 'Plinko', mines: 'Mines', blackjack: 'Blackjack' };
 const GAME_COLOR: Record<string, string> = { roulette: 'var(--accent)', plinko: 'var(--blue)', mines: 'var(--loss)', blackjack: 'var(--purple)' };
 const ROULETTE_RED = new Set([1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36]);
-
-const TIERS = [
-  { name: 'Bronze', min: 0 },
-  { name: 'Silver', min: 10_000 },
-  { name: 'Gold', min: 50_000 },
-  { name: 'Platinum', min: 150_000 },
-  { name: 'Diamond', min: 500_000 },
-  { name: 'Obsidian', min: 2_000_000 },
-];
 
 type ChartTab = 'pnl' | 'wagered' | 'games';
 
@@ -167,10 +160,10 @@ export function ProfilePage() {
   const tier = useMemo(() => {
     const wagered = data?.totalWagered ?? 0;
     let idx = 0;
-    for (let i = 0; i < TIERS.length; i++) if (wagered >= TIERS[i]!.min) idx = i;
+    for (let i = 0; i < TIERS.length; i++) if (wagered >= TIERS[i]!.minWagered) idx = i;
     const cur = TIERS[idx]!;
     const next = TIERS[idx + 1];
-    const progress = next ? Math.min(1, (wagered - cur.min) / (next.min - cur.min)) : 1;
+    const progress = next ? Math.min(1, (wagered - cur.minWagered) / (next.minWagered - cur.minWagered)) : 1;
     const fillPct = ((idx + progress) / (TIERS.length - 1)) * 100;
     return { idx, cur, next, progress, fillPct, wagered };
   }, [data?.totalWagered]);
@@ -212,7 +205,9 @@ export function ProfilePage() {
           </div>
           <div className="tag-row">
             <span className="tag gold"><StarIco /> RANK #{data.balanceRank}</span>
-            <span className="tag accent"><DiamondIco /> TIER · {tier.cur.name.toUpperCase()}</span>
+            <span className="tag tier-tag" style={{ color: tierColor(tier.idx), borderColor: tierColor(tier.idx) }}>
+              <TierBadge level={tier.idx} size={11} /> TIER · {tier.cur.name.toUpperCase()}
+            </span>
             {data.isVerified && <span className="tag"><ShieldIco /> VERIFIED</span>}
           </div>
         </div>
@@ -237,7 +232,7 @@ export function ProfilePage() {
         <div className="tier-progress">
           {tier.next ? (
             <>
-              <div className="pct">{tier.wagered.toLocaleString()}<small> / {tier.next.min.toLocaleString()} V</small></div>
+              <div className="pct">{tier.wagered.toLocaleString()}<small> / {tier.next.minWagered.toLocaleString()} V</small></div>
               <div className="sub">TO {tier.next.name.toUpperCase()} · WAGERED</div>
             </>
           ) : (
@@ -247,6 +242,28 @@ export function ProfilePage() {
             </>
           )}
         </div>
+      </div>
+
+      {/* Tier perks — what this tier grants, and what's next */}
+      <div className="tier-perks">
+        <div className="tier-perk">
+          <span className="tier-perk-ico" style={{ color: 'var(--accent)' }}><ZapIcon size={14} /></span>
+          <span className="tier-perk-txt">Daily bonus <strong>{tier.cur.dailyBonus.toLocaleString()}</strong>/day</span>
+        </div>
+        {tier.next ? (
+          <div className="tier-perk">
+            <span className="tier-perk-ico" style={{ color: tierColor(tier.idx + 1) }}><CoinIcon size={14} /></span>
+            <span className="tier-perk-txt">
+              Next: <strong style={{ color: tierColor(tier.idx + 1) }}>{tier.next.name}</strong> unlocks{' '}
+              <strong>+{tier.next.reward.toLocaleString()}</strong> &amp; {tier.next.dailyBonus.toLocaleString()}/day
+            </span>
+          </div>
+        ) : (
+          <div className="tier-perk">
+            <span className="tier-perk-ico" style={{ color: tierColor(tier.idx) }}><TrophyIcon size={14} /></span>
+            <span className="tier-perk-txt">Highest tier — all perks unlocked</span>
+          </div>
+        )}
       </div>
 
       {/* Stat grid */}
