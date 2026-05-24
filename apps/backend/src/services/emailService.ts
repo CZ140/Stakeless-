@@ -1,28 +1,27 @@
 import nodemailer from 'nodemailer';
 import { env } from '../env.js';
 
-const transporter = nodemailer.createTransport({
-  host: env.SMTP_HOST,
-  port: env.SMTP_PORT,
-  secure: env.SMTP_PORT === 465,
-  auth: { user: env.SMTP_USER, pass: env.SMTP_PASS },
-});
+// Email is optional. Account verification was removed (accounts are usable on
+// signup), so the only remaining email is the password-reset link. When SMTP
+// isn't configured we degrade gracefully — log the link to the server console
+// (convenient in local dev) instead of throwing, so a missing mail provider can
+// never break the request that triggered it.
+const smtpConfigured = Boolean(env.SMTP_HOST && env.SMTP_USER && env.SMTP_PASS);
 
-export async function sendVerificationEmail(to: string, verifyUrl: string): Promise<void> {
-  await transporter.sendMail({
-    from: `"Stakeless" <${env.SMTP_FROM}>`,
-    to,
-    subject: 'Verify your email address',
-    text: `Click this link to verify your email: ${verifyUrl}\n\nThis link expires in 24 hours.`,
-    html: `
-      <p>Welcome to Stakeless!</p>
-      <p><a href="${verifyUrl}">Click here to verify your email address</a></p>
-      <p>This link expires in 24 hours.</p>
-    `,
-  });
-}
+const transporter = smtpConfigured
+  ? nodemailer.createTransport({
+      host: env.SMTP_HOST!,
+      port: env.SMTP_PORT,
+      secure: env.SMTP_PORT === 465,
+      auth: { user: env.SMTP_USER!, pass: env.SMTP_PASS! },
+    })
+  : null;
 
 export async function sendPasswordResetEmail(to: string, resetUrl: string): Promise<void> {
+  if (!transporter) {
+    console.log(`[email] SMTP not configured — password reset link for ${to}:\n  ${resetUrl}`);
+    return;
+  }
   await transporter.sendMail({
     from: `"Stakeless" <${env.SMTP_FROM}>`,
     to,

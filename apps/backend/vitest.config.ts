@@ -27,6 +27,10 @@ export default defineConfig({
       SMTP_USER: 'test',
       SMTP_PASS: 'test',
       SMTP_FROM: 'test@test.local',
+      // Pin empty so the suite is hermetic regardless of a developer's local .env:
+      // the "Google not configured" path stays deterministic even when the dev
+      // .env sets a real GOOGLE_CLIENT_ID (dotenv never overrides values set here).
+      GOOGLE_CLIENT_ID: '',
     },
   },
 });

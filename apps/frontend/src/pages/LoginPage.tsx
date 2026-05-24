@@ -11,7 +11,6 @@ export function LoginPage() {
   const location = useLocation();
   const params = new URLSearchParams(location.search);
   const sessionExpired = params.get('expired') === 'true';
-  const justVerified = params.get('verified') === 'true';
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -46,7 +45,6 @@ export function LoginPage() {
         <h1>Welcome back.</h1>
         <p className="subtitle">Sign in to play with virtual coins. No real money — just for fun.</p>
 
-        {justVerified && <div className="auth-note">Email verified — you can sign in now.</div>}
         {sessionExpired && !error && <div className="auth-error">Your session expired — please sign in again.</div>}
         {error && <div className="auth-error">{error}</div>}
 

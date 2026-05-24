@@ -66,14 +66,14 @@ export function RegisterPage() {
     return (
       <AuthLayout>
         <div className="auth-card">
-          <div className="auth-eyebrow">CHECK YOUR EMAIL</div>
-          <h1>Almost there.</h1>
+          <div className="auth-eyebrow">ACCOUNT CREATED</div>
+          <h1>You're in.</h1>
           <p className="subtitle">
-            We sent a verification link to <strong style={{ color: 'var(--text)' }}>{email}</strong>. Click it to
-            activate your account and claim your 1,000 coins.
+            Your account <strong style={{ color: 'var(--text)' }}>{email}</strong> is ready. Sign in to claim your
+            1,000 coins and start playing.
           </p>
           <div className="auth-foot-link">
-            <Link to="/login">Back to sign in →</Link>
+            <Link to="/login">Sign in →</Link>
           </div>
         </div>
       </AuthLayout>

@@ -3,7 +3,7 @@ import { eq, and, isNull, gt, ne, sql } from 'drizzle-orm';
 import { db } from '../db/index.js';
 import { users, emailVerificationTokens, refreshTokens } from '../db/schema.js';
 import { generateOpaqueToken, hashToken, signAccessToken } from './tokenService.js';
-import { sendVerificationEmail, sendPasswordResetEmail } from './emailService.js';
+import { sendPasswordResetEmail } from './emailService.js';
 import type { GoogleProfile } from './googleAuthService.js';
 import { env } from '../env.js';
 
@@ -51,57 +51,18 @@ export async function register(email: string, password: string): Promise<void> {
   const emailPrefix = email.split('@')[0] ?? 'user';
   const username = await deriveUsername(emailPrefix);
 
+  // No email-verification step — accounts are usable the moment they're created
+  // (this is a play-money app with no real stakes, so we don't gate on a verified
+  // address). Mark verified on insert so login succeeds immediately.
   const [newUser] = await db.insert(users).values({
     email: email.toLowerCase(),
     passwordHash,
     username,
     balance: 1000, // CURR-01: 1,000 coins starting balance (≥50 minimum bets at 1 coin each)
+    isEmailVerified: true,
   }).returning({ id: users.id });
 
   if (!newUser) throw new Error('Failed to create user');
-
-  // Issue email verification token
-  const rawToken = generateOpaqueToken();
-  const tokenHash = hashToken(rawToken);
-  const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
-
-  await db.insert(emailVerificationTokens).values({
-    userId: newUser.id,
-    tokenHash,
-    type: 'verify_email',
-    expiresAt,
-  });
-
-  const verifyUrl = `${env.FRONTEND_URL}/verify-email?token=${rawToken}`;
-  await sendVerificationEmail(email, verifyUrl);
-}
-
-export async function verifyEmail(rawToken: string): Promise<void> {
-  const tokenHash = hashToken(rawToken);
-
-  const [record] = await db.select().from(emailVerificationTokens)
-    .where(
-      and(
-        eq(emailVerificationTokens.tokenHash, tokenHash),
-        eq(emailVerificationTokens.type, 'verify_email'),
-        isNull(emailVerificationTokens.usedAt),
-      )
-    )
-    .limit(1);
-
-  if (!record || record.expiresAt < new Date()) {
-    throw Object.assign(new Error('Invalid or expired link'), { code: 'INVALID_TOKEN' });
-  }
-
-  // Mark token used (single-use enforcement — do not delete, so replayed links return an error)
-  await db.update(emailVerificationTokens)
-    .set({ usedAt: new Date() })
-    .where(eq(emailVerificationTokens.id, record.id));
-
-  // Activate the account
-  await db.update(users)
-    .set({ isEmailVerified: true })
-    .where(eq(users.id, record.userId));
 }
 
 export async function login(
@@ -128,10 +89,6 @@ export async function login(
     user.passwordHash ?? '$2a$12$invalidhashplaceholderXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX',
   );
   if (!passwordValid) throw invalidErr;
-
-  if (!user.isEmailVerified) {
-    throw Object.assign(new Error('Email not verified'), { code: 'EMAIL_NOT_VERIFIED' });
-  }
 
   if (user.isBanned) {
     throw Object.assign(new Error('Account banned'), { code: 'ACCOUNT_BANNED' });
