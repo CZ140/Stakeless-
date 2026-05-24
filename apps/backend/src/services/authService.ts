@@ -1,5 +1,5 @@
 import bcrypt from 'bcryptjs';
-import { eq, and, isNull, gt } from 'drizzle-orm';
+import { eq, and, isNull, gt, ne, sql } from 'drizzle-orm';
 import { db } from '../db/index.js';
 import { users, emailVerificationTokens, refreshTokens } from '../db/schema.js';
 import { generateOpaqueToken, hashToken, signAccessToken } from './tokenService.js';
@@ -178,6 +178,8 @@ export async function getProfile(userId: number) {
     totalProfit: users.totalProfit,
     totalLoss: users.totalLoss,
     tierLevel: users.tierLevel,
+    avatarColor: users.avatarColor,
+    avatarImage: users.avatarImage,
     lastBonusClaimedAt: users.lastBonusClaimedAt,
     createdAt: users.createdAt,
     lastLoginAt: users.lastLoginAt,
@@ -196,10 +198,48 @@ export async function getProfile(userId: number) {
     totalProfit: user.totalProfit,
     totalLoss: user.totalLoss,
     tierLevel: user.tierLevel,
+    avatarColor: user.avatarColor,
+    avatarImage: user.avatarImage,
     dailyBonusTimestamp: user.lastBonusClaimedAt?.toISOString() ?? null,
     createdAt: user.createdAt.toISOString(),
     lastLoginAt: user.lastLoginAt?.toISOString() ?? null,
   };
+}
+
+// ─── updateProfile ──────────────────────────────────────────────────────────
+// Edits the authenticated user's own username and/or avatar. Only the fields
+// present in `patch` are touched (undefined = leave as-is; null avatar = clear).
+// Username uniqueness is enforced case-insensitively (excluding self) so two
+// players can't hold the same name in different casing. Throws USERNAME_TAKEN.
+// Returns the fresh profile (same shape as getProfile).
+interface ProfilePatch {
+  username?: string;
+  avatarColor?: string | null;
+  avatarImage?: string | null;
+}
+
+export async function updateProfile(userId: number, patch: ProfilePatch) {
+  const updates: Record<string, unknown> = {};
+
+  if (patch.username !== undefined) {
+    // Case-insensitive uniqueness check against everyone else.
+    const [clash] = await db
+      .select({ id: users.id })
+      .from(users)
+      .where(and(sql`lower(${users.username}) = lower(${patch.username})`, ne(users.id, userId)))
+      .limit(1);
+    if (clash) throw Object.assign(new Error('Username taken'), { code: 'USERNAME_TAKEN' });
+    updates.username = patch.username;
+  }
+
+  if (patch.avatarColor !== undefined) updates.avatarColor = patch.avatarColor;
+  if (patch.avatarImage !== undefined) updates.avatarImage = patch.avatarImage;
+
+  if (Object.keys(updates).length > 0) {
+    await db.update(users).set(updates).where(eq(users.id, userId));
+  }
+
+  return getProfile(userId);
 }
 
 export async function logout(rawRefreshToken: string): Promise<void> {

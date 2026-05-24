@@ -19,6 +19,11 @@ export const users = pgTable('users', {
   totalProfit: bigint('total_profit', { mode: 'number' }).notNull().default(0),
   totalLoss: bigint('total_loss', { mode: 'number' }).notNull().default(0),
   role: varchar('role', { length: 20 }).notNull().default('player'),
+  // Avatar customization. avatarColor tints the letter-monogram (hex like
+  // '#5aa9ff'); null falls back to a colour derived from the username. avatarImage
+  // holds a small client-resized data URL (no object storage yet); null → monogram.
+  avatarColor: varchar('avatar_color', { length: 7 }),
+  avatarImage: text('avatar_image'),
   // Highest tier reached, derived from totalWagered but persisted so a one-time
   // tier-up reward fires exactly once when a player crosses each threshold.
   tierLevel: integer('tier_level').notNull().default(0),

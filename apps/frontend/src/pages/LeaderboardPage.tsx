@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { AppShell } from '../components/vault/AppShell';
 import { TrophyIcon } from '../components/vault/icons';
 import { TierBadge } from '../components/vault/TierBadge';
+import { Avatar } from '../components/vault/Avatar';
 import { useLeaderboard } from '../hooks/useLeaderboard';
 import { useLeaderboardStore } from '../stores/leaderboardStore';
 import { useAuth } from '../contexts/AuthContext';
@@ -48,9 +49,9 @@ export function LeaderboardPage() {
     setIsLoading(true);
     apiClient
       .get<{
-        byBalance: { id: number; username: string; value: number; tierLevel: number }[];
-        byWagered: { id: number; username: string; value: number; tierLevel: number }[];
-        byProfit: { id: number; username: string; value: number; tierLevel: number }[];
+        byBalance: { id: number; username: string; value: number; tierLevel: number; avatarColor: string | null }[];
+        byWagered: { id: number; username: string; value: number; tierLevel: number; avatarColor: string | null }[];
+        byProfit: { id: number; username: string; value: number; tierLevel: number; avatarColor: string | null }[];
         ownRanks: {
           balance: { rank: number; value: number } | null;
           wagered: { rank: number; value: number } | null;
@@ -172,7 +173,7 @@ export function LeaderboardPage() {
               <div key={p.id} className={'lb-row' + (isYou ? ' you' : '')}>
                 <div className={'rk' + (rank <= 3 ? ' top' : '')}>{rank}</div>
                 <div className="player">
-                  <span className="ava-sm">{initial(p.username)}</span>
+                  <Avatar username={p.username} avatarColor={p.avatarColor} className="ava-sm" />
                   <div>
                     <Link to={`/profile/${p.username}`}>{p.username}</Link>
                     <TierBadge level={p.tierLevel} size={12} />

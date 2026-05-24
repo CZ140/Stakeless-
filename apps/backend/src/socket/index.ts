@@ -8,6 +8,7 @@ interface LeaderboardRow {
   username: string;
   value: number;
   tierLevel: number;
+  avatarColor: string | null;
 }
 
 interface LeaderboardSnapshot {

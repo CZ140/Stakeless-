@@ -77,6 +77,8 @@ profileRouter.get('/:username', async (req, res) => {
         totalProfit: users.totalProfit,
         role: users.role,
         isVerified: users.isEmailVerified,
+        avatarColor: users.avatarColor,
+        avatarImage: users.avatarImage,
         createdAt: users.createdAt,
       })
       .from(users)
@@ -186,6 +188,8 @@ profileRouter.get('/:username', async (req, res) => {
       streak,
       role: user.role,
       isVerified: user.isVerified,
+      avatarColor: user.avatarColor,
+      avatarImage: user.avatarImage,
       joinedAt: user.createdAt.toISOString(),
       daily,
       gameMix,

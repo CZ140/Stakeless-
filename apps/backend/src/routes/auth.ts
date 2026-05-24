@@ -2,7 +2,7 @@ import { Router, type IRouter } from 'express';
 import { z } from 'zod';
 import { validate } from '../middleware/validate.js';
 import { authLimiter } from '../middleware/rateLimiter.js';
-import { register, verifyEmail, login, refreshToken, getProfile, logout, forgotPassword, resetPassword } from '../services/authService.js';
+import { register, verifyEmail, login, refreshToken, getProfile, updateProfile, logout, forgotPassword, resetPassword } from '../services/authService.js';
 import { requireAuth } from '../middleware/requireAuth.js';
 import { env } from '../env.js';
 
@@ -135,6 +135,55 @@ authRouter.get('/me', requireAuth, async (req, res) => {
       return;
     }
     console.error('[auth] me error:', err);
+    res.status(500).json({ error: 'An unexpected error occurred' });
+  }
+});
+
+// PATCH /api/auth/me — edit own username and/or avatar.
+// avatarImage is a client-resized data URL (no object storage); the length cap
+// (~256KB) is the real guard, enforced here so an oversized body is rejected
+// before it touches the DB. avatarColor/avatarImage accept null to clear.
+const MAX_AVATAR_CHARS = 350_000; // ~256KB of base64
+const updateProfileSchema = z
+  .object({
+    username: z
+      .string()
+      .trim()
+      .min(3, 'Username must be at least 3 characters')
+      .max(20, 'Username must be at most 20 characters')
+      .regex(/^[A-Za-z0-9_]+$/, 'Use only letters, numbers and underscores')
+      .optional(),
+    avatarColor: z
+      .string()
+      .regex(/^#[0-9a-fA-F]{6}$/, 'Invalid colour')
+      .nullable()
+      .optional(),
+    avatarImage: z
+      .string()
+      .regex(/^data:image\/(png|jpe?g|webp);base64,/, 'Invalid image')
+      .max(MAX_AVATAR_CHARS, 'Image too large — please pick a smaller picture')
+      .nullable()
+      .optional(),
+  })
+  .refine((d) => d.username !== undefined || d.avatarColor !== undefined || d.avatarImage !== undefined, {
+    message: 'Nothing to update',
+  });
+
+authRouter.patch('/me', requireAuth, validate(updateProfileSchema), async (req, res) => {
+  try {
+    const profile = await updateProfile(req.user!.id, req.body);
+    res.json(profile);
+  } catch (err: unknown) {
+    const code = (err as { code?: string }).code;
+    if (code === 'USERNAME_TAKEN') {
+      res.status(409).json({ error: 'That username is already taken' });
+      return;
+    }
+    if (code === 'NOT_FOUND') {
+      res.status(404).json({ error: 'User not found' });
+      return;
+    }
+    console.error('[auth] update profile error:', err);
     res.status(500).json({ error: 'An unexpected error occurred' });
   }
 });

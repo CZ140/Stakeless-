@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { BalanceChip } from './BalanceChip';
+import { Avatar } from './Avatar';
 import { SearchIcon, BellIcon, ChatIcon, MenuIcon } from './icons';
 
 // Top bar for the app shell. The search field and bell/chat buttons are
@@ -10,8 +11,7 @@ import { SearchIcon, BellIcon, ChatIcon, MenuIcon } from './icons';
 // `onMenuToggle` opens/closes the mobile navigation drawer; the hamburger that
 // triggers it is hidden on desktop via CSS.
 export function TopBar({ onMenuToggle }: { onMenuToggle?: () => void }) {
-  const { username } = useAuth();
-  const initial = (username ?? '?').charAt(0).toUpperCase();
+  const { username, avatarColor, avatarImage } = useAuth();
 
   return (
     <header className="header">
@@ -32,7 +32,7 @@ export function TopBar({ onMenuToggle }: { onMenuToggle?: () => void }) {
         </button>
         <BalanceChip />
         <Link className="user-pill" to={username ? `/profile/${username}` : '/dashboard'}>
-          <span className="avatar">{initial}</span>
+          <Avatar username={username ?? '?'} avatarColor={avatarColor} avatarImage={avatarImage} className="avatar" />
           <span className="name">
             {username ?? 'Guest'}
             <small>PLAYER</small>

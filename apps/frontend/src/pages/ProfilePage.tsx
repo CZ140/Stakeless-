@@ -1,8 +1,11 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { AppShell } from '../components/vault/AppShell';
 import { gameIcons, CoinIcon, TrophyIcon, ZapIcon } from '../components/vault/icons';
 import { TierBadge, tierColor } from '../components/vault/TierBadge';
+import { Avatar } from '../components/vault/Avatar';
+import { EditProfileModal } from '../components/vault/EditProfileModal';
+import { useAuth } from '../contexts/AuthContext';
 import { apiClient } from '../api/client';
 import { TIERS } from '@gambling/shared';
 
@@ -23,6 +26,8 @@ interface ProfileData {
   streak: number;
   role: string;
   isVerified: boolean;
+  avatarColor: string | null;
+  avatarImage: string | null;
   joinedAt: string;
   daily: DailyRow[];
   gameMix: GameMixRow[];
@@ -44,6 +49,7 @@ const StarIco = () => <svg width="10" height="10" viewBox="0 0 24 24" fill="curr
 const DiamondIco = () => <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><path d="M6 3h12l4 6-10 12L2 9z" /></svg>;
 const ShieldIco = () => <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3l8 3v5c0 5-3.5 8-8 10-4.5-2-8-5-8-10V6z" /><path d="M9 12l2 2 4-4" /></svg>;
 const FireIco = () => <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2c1 3-1 4-2 6s0 4 2 4 2-3 1-5c2 1 4 4 4 7a7 7 0 0 1-14 0c0-3 2-5 3-7 1 2 3 1 3-2 0-1 0-2 0-3z" /></svg>;
+const EditIco = () => <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z" /></svg>;
 
 function deriveHandle(username: string): string {
   const letters = (username.replace(/[^a-z]/gi, '').slice(0, 3) || 'STK').toUpperCase();
@@ -131,11 +137,14 @@ function PnlChart({ daily, tab }: { daily: DailyRow[]; tab: ChartTab }) {
 
 export function ProfilePage() {
   const { username: routeUsername } = useParams<{ username: string }>();
+  const navigate = useNavigate();
+  const { username: authUsername, updateLocalProfile } = useAuth();
   const [data, setData] = useState<ProfileData | null>(null);
   const [activity, setActivity] = useState<ActivityRow[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [tab, setTab] = useState<ChartTab>('pnl');
+  const [editing, setEditing] = useState(false);
 
   useEffect(() => {
     if (!routeUsername) return;
@@ -184,6 +193,7 @@ export function ProfilePage() {
   const totalMixGames = data.gameMix.reduce((s, g) => s + g.games, 0) || 1;
   const joined = new Date(data.joinedAt).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }).toUpperCase();
   const profitPos = data.totalProfit >= 0;
+  const isOwn = !!authUsername && authUsername.toLowerCase() === data.username.toLowerCase();
 
   return (
     <AppShell>
@@ -194,7 +204,7 @@ export function ProfilePage() {
 
       {/* Hero */}
       <div className="acc-hero">
-        <div className="acc-ava">{data.username.charAt(0).toUpperCase()}</div>
+        <Avatar username={data.username} avatarColor={data.avatarColor} avatarImage={data.avatarImage} className="acc-ava" />
         <div className="acc-id">
           <h1>{data.username}<span className="handle">{deriveHandle(data.username)}</span></h1>
           <div className="meta-line">
@@ -212,6 +222,11 @@ export function ProfilePage() {
           </div>
         </div>
         <div className="acc-hero-actions">
+          {isOwn && (
+            <button className="btn btn-ghost" type="button" onClick={() => setEditing(true)}>
+              <EditIco /> Edit profile
+            </button>
+          )}
           <span className="id-code">ID · {deriveHandle(data.username)}</span>
         </div>
       </div>
@@ -387,6 +402,20 @@ export function ProfilePage() {
           </>
         )}
       </div>
+
+      {editing && (
+        <EditProfileModal
+          initial={{ username: data.username, avatarColor: data.avatarColor, avatarImage: data.avatarImage }}
+          onClose={() => setEditing(false)}
+          onSaved={(p) => {
+            setEditing(false);
+            updateLocalProfile(p);
+            const renamed = p.username !== data.username;
+            setData((prev) => (prev ? { ...prev, username: p.username, avatarColor: p.avatarColor, avatarImage: p.avatarImage } : prev));
+            if (renamed) navigate(`/profile/${p.username}`, { replace: true });
+          }}
+        />
+      )}
     </AppShell>
   );
 }

@@ -17,21 +17,43 @@ import { socket } from '../socket';
 interface AuthState {
   accessToken: string | null;
   username: string | null;
+  // Own avatar, mirrored from /auth/me so the header/sidebar render it without
+  // an extra fetch; kept in sync after a profile edit via updateLocalProfile.
+  avatarColor: string | null;
+  avatarImage: string | null;
   isLoading: boolean; // true while checking for existing session on mount
   sessionExpired: boolean; // true only when a live session expired mid-use
+}
+
+interface MeResponse {
+  balance: number;
+  username: string;
+  tierLevel: number;
+  avatarColor: string | null;
+  avatarImage: string | null;
 }
 
 interface AuthContextValue extends AuthState {
   signIn: (token: string) => void;
   signOut: () => Promise<void>;
+  // Sync locally-held identity after a successful profile edit.
+  updateLocalProfile: (p: { username?: string; avatarColor?: string | null; avatarImage?: string | null }) => void;
 }
+
+const LOGGED_OUT = { accessToken: null, username: null, avatarColor: null, avatarImage: null } as const;
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [state, setState] = useState<AuthState>({ accessToken: null, username: null, isLoading: true, sessionExpired: false });
+  const [state, setState] = useState<AuthState>({ ...LOGGED_OUT, isLoading: true, sessionExpired: false });
   // Track previous accessToken to detect null→value transitions
   const prevTokenRef = useRef<string | null>(null);
+
+  const applyMe = (me: MeResponse) => {
+    useBalanceStore.getState().setBalance(me.balance);
+    useBalanceStore.getState().setTierLevel(me.tierLevel);
+    setState((prev) => ({ ...prev, username: me.username, avatarColor: me.avatarColor, avatarImage: me.avatarImage }));
+  };
 
   // On mount: attempt silent refresh to restore session from httpOnly cookie
   useEffect(() => {
@@ -39,31 +61,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .post<{ accessToken: string }>('/api/auth/refresh', {}, { withCredentials: true })
       .then((res) => {
         setAccessToken(res.data.accessToken);
-        setState({ accessToken: res.data.accessToken, username: null, isLoading: false, sessionExpired: false });
-        // Fetch profile to initialize balance
-        return apiClient.get<{ balance: number; username: string; tierLevel: number }>('/auth/me');
+        setState({ ...LOGGED_OUT, accessToken: res.data.accessToken, isLoading: false, sessionExpired: false });
+        // Fetch profile to initialize balance + identity
+        return apiClient.get<MeResponse>('/auth/me');
       })
-      .then((meRes) => {
-        useBalanceStore.getState().setBalance(meRes.data.balance);
-        useBalanceStore.getState().setTierLevel(meRes.data.tierLevel);
-        setState(prev => ({ ...prev, username: meRes.data.username as string }));
-      })
+      .then((meRes) => applyMe(meRes.data))
       .catch(() => {
-        setState({ accessToken: null, username: null, isLoading: false, sessionExpired: false });
+        setState({ ...LOGGED_OUT, isLoading: false, sessionExpired: false });
       });
   }, []);
 
-  // When accessToken transitions from null to a value (after signIn), fetch balance
+  // When accessToken transitions from null to a value (after signIn), fetch profile
   useEffect(() => {
     if (state.accessToken !== null && prevTokenRef.current === null) {
-      // Token just became available — fetch profile for balance
       apiClient
-        .get<{ balance: number; username: string; tierLevel: number }>('/auth/me')
-        .then((res) => {
-          useBalanceStore.getState().setBalance(res.data.balance);
-          useBalanceStore.getState().setTierLevel(res.data.tierLevel);
-          setState(prev => ({ ...prev, username: res.data.username as string }));
-        })
+        .get<MeResponse>('/auth/me')
+        .then((res) => applyMe(res.data))
         .catch(() => {
           // Non-fatal — balance will show as null until next refresh
         });
@@ -75,7 +88,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const handleExpiry = () => {
       setAccessToken(null);
-      setState({ accessToken: null, username: null, isLoading: false, sessionExpired: true });
+      setState({ ...LOGGED_OUT, isLoading: false, sessionExpired: true });
       useBalanceStore.getState().clearBalance();
     };
     window.addEventListener('auth:session-expired', handleExpiry);
@@ -117,7 +130,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signIn = useCallback((token: string) => {
     setAccessToken(token);
-    setState({ accessToken: token, username: null, isLoading: false, sessionExpired: false });
+    setState({ ...LOGGED_OUT, accessToken: token, isLoading: false, sessionExpired: false });
   }, []);
 
   const signOut = useCallback(async () => {
@@ -127,12 +140,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Ignore errors — clear local state regardless
     }
     setAccessToken(null);
-    setState({ accessToken: null, username: null, isLoading: false, sessionExpired: false });
+    setState({ ...LOGGED_OUT, isLoading: false, sessionExpired: false });
     useBalanceStore.getState().clearBalance();
   }, []);
 
+  const updateLocalProfile = useCallback(
+    (p: { username?: string; avatarColor?: string | null; avatarImage?: string | null }) => {
+      setState((prev) => ({
+        ...prev,
+        username: p.username ?? prev.username,
+        avatarColor: p.avatarColor !== undefined ? p.avatarColor : prev.avatarColor,
+        avatarImage: p.avatarImage !== undefined ? p.avatarImage : prev.avatarImage,
+      }));
+    },
+    [],
+  );
+
   return (
-    <AuthContext.Provider value={{ ...state, signIn, signOut }}>
+    <AuthContext.Provider value={{ ...state, signIn, signOut, updateLocalProfile }}>
       {children}
     </AuthContext.Provider>
   );

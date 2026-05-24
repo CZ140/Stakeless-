@@ -5,6 +5,7 @@ export interface LeaderboardRow {
   username: string;
   value: number;
   tierLevel: number;
+  avatarColor: string | null;
 }
 
 export interface LeaderboardSnapshot {

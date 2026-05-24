@@ -22,17 +22,17 @@ leaderboardRouter.get('/', async (req, res) => {
   try {
     const [byBalance, byWagered, byProfit] = await Promise.all([
       db
-        .select({ id: users.id, username: users.username, value: users.balance, tierLevel: users.tierLevel })
+        .select({ id: users.id, username: users.username, value: users.balance, tierLevel: users.tierLevel, avatarColor: users.avatarColor })
         .from(users)
         .orderBy(desc(users.balance), asc(users.id))
         .limit(25),
       db
-        .select({ id: users.id, username: users.username, value: users.totalWagered, tierLevel: users.tierLevel })
+        .select({ id: users.id, username: users.username, value: users.totalWagered, tierLevel: users.tierLevel, avatarColor: users.avatarColor })
         .from(users)
         .orderBy(desc(users.totalWagered), asc(users.id))
         .limit(25),
       db
-        .select({ id: users.id, username: users.username, value: users.totalProfit, tierLevel: users.tierLevel })
+        .select({ id: users.id, username: users.username, value: users.totalProfit, tierLevel: users.tierLevel, avatarColor: users.avatarColor })
         .from(users)
         .orderBy(desc(users.totalProfit), asc(users.id))
         .limit(25),
