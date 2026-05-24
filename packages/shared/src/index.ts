@@ -14,6 +14,22 @@ export {
 } from './tiers.js';
 export type { Tier } from './tiers.js';
 
+// Slots — 3×3 grid, 5 paylines. Paytable, RNG-to-symbol mapping, and line
+// evaluation shared by backend (settlement) and frontend (paytable + win
+// highlighting). See slots.ts for the model and the exact-RTP derivation.
+export {
+  SLOTS,
+  SLOT_SYMBOLS,
+  SLOT_TOTAL_WEIGHT,
+  PAYLINES,
+  slotSymbolById,
+  symbolForRoll,
+  evaluateLine,
+  resolveSlots,
+  slotsRtp,
+} from './slots.js';
+export type { SlotSymbolId, SlotSymbol, SlotGrid, SlotCell, SlotLineWin, SlotResult } from './slots.js';
+
 export interface ApiResponse<T = unknown> {
   success: boolean;
   data?: T;
@@ -26,7 +42,7 @@ export interface HealthResponse {
 }
 
 // Game types (stubs for future phases)
-export type GameType = 'roulette' | 'plinko' | 'mines' | 'blackjack' | 'dice';
+export type GameType = 'roulette' | 'plinko' | 'mines' | 'blackjack' | 'dice' | 'slots';
 
 // ─── Dice ─────────────────────────────────────────────────────────────────────
 // Pure dice math shared by the backend (settlement) and frontend (live readout)

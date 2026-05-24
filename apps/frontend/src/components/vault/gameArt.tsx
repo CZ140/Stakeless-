@@ -80,10 +80,28 @@ const DiceArt = () => (
   </svg>
 );
 
+const SlotsArt = () => (
+  <svg width="64" height="64" viewBox="0 0 64 64" fill="none">
+    <rect x="8" y="12" width="48" height="36" rx="5" fill="#241a0c" stroke="#D4A857" strokeWidth="1.5" />
+    {/* three reel windows */}
+    {[14, 27, 40].map((x, i) => (
+      <rect key={i} x={x} y="20" width="10" height="20" rx="2" fill="#1a1208" stroke="rgba(212,168,87,0.5)" strokeWidth="0.8" />
+    ))}
+    {/* a winning row of sevens */}
+    <text x="19" y="33" textAnchor="middle" fontFamily="Geist Mono" fontSize="11" fontWeight="800" fill="#F5D68A">7</text>
+    <text x="32" y="33" textAnchor="middle" fontFamily="Geist Mono" fontSize="11" fontWeight="800" fill="#F5D68A">7</text>
+    <text x="45" y="33" textAnchor="middle" fontFamily="Geist Mono" fontSize="11" fontWeight="800" fill="#F5D68A">7</text>
+    {/* lever */}
+    <line x1="56" y1="22" x2="56" y2="32" stroke="#D4A857" strokeWidth="1.5" />
+    <circle cx="56" cy="20" r="2.6" fill="#F0445A" />
+  </svg>
+);
+
 export const gameArt: Record<string, () => ReactElement> = {
   roulette: RouletteArt,
   plinko: PlinkoArt,
   mines: MinesArt,
   blackjack: BlackjackArt,
   dice: DiceArt,
+  slots: SlotsArt,
 };

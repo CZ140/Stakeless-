@@ -49,6 +49,17 @@ export const DiceIcon = ({ size = 18 }: IconProps) => (
   </svg>
 );
 
+export const SlotsIcon = ({ size = 18 }: IconProps) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" {...stroke}>
+    <rect x="3" y="5" width="18" height="14" rx="2" />
+    <line x1="9" y1="5" x2="9" y2="19" />
+    <line x1="15" y1="5" x2="15" y2="19" />
+    <circle cx="6" cy="12" r="1.2" fill="currentColor" stroke="none" />
+    <circle cx="12" cy="12" r="1.2" fill="currentColor" stroke="none" />
+    <circle cx="18" cy="12" r="1.2" fill="currentColor" stroke="none" />
+  </svg>
+);
+
 export const PlinkoIcon = ({ size = 18 }: IconProps) => (
   <svg width={size} height={size} viewBox="0 0 24 24" {...stroke}>
     <circle cx="12" cy="5" r="1" />

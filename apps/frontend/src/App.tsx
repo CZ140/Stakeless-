@@ -9,6 +9,7 @@ import { RoulettePage } from './pages/RoulettePage';
 import { PlinkoPage } from './pages/PlinkoPage';
 import { MinesPage } from './pages/MinesPage';
 import { DicePage } from './pages/DicePage';
+import { SlotsPage } from './pages/SlotsPage';
 import { BlackjackPage } from './pages/BlackjackPage';
 import { LeaderboardPage } from './pages/LeaderboardPage';
 import { ProfilePage } from './pages/ProfilePage';
@@ -76,6 +77,14 @@ export default function App() {
         element={
           <ProtectedRoute>
             <DicePage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/games/slots"
+        element={
+          <ProtectedRoute>
+            <SlotsPage />
           </ProtectedRoute>
         }
       />

@@ -8,7 +8,8 @@ import { deductBet, settleBet, reconcileTier } from '../services/walletService.j
 import { resolveRouletteBets } from '../services/rouletteService.js';
 import { resolvePlinko, rollPlinkoBucket } from '../services/plinkoService.js';
 import { rollDice, resolveDice } from '../services/diceService.js';
-import { diceWinChance, diceWinChanceValid } from '@gambling/shared';
+import { spinGrid } from '../services/slotsService.js';
+import { diceWinChance, diceWinChanceValid, resolveSlots } from '@gambling/shared';
 import {
   generateMineGrid,
   calculateMinesMultiplier,
@@ -236,6 +237,52 @@ gamesRouter.post('/dice/bet', gameLimiter, clickInterval, requireAuth, async (re
     if (code === 'INSUFFICIENT_FUNDS') { res.status(402).json({ error: 'Insufficient funds' }); return; }
     if (code === 'BET_TOO_SMALL') { res.status(400).json({ error: 'Bet amount too small' }); return; }
     console.error('[games] dice bet error:', err);
+    res.status(500).json({ error: 'An unexpected error occurred' });
+  }
+});
+
+// ─── Slots ───────────────────────────────────────────────────────────────────
+
+const slotsBetSchema = z.object({
+  betAmount: z.number().int().min(1).max(1_000_000),
+});
+
+// POST /api/games/slots/bet
+// Pipeline: validate → deductBet → crypto spinGrid → resolveSlots → settleBet →
+// emit → tier reconcile. Instant-settle (no session). The total bet is split
+// evenly across the 5 paylines; resolveSlots is the shared single source of truth.
+// Returns 200 { grid, lines, totalPayout, win, profit, newBalance }.
+// Returns 400 on invalid input, 402 on INSUFFICIENT_FUNDS.
+gamesRouter.post('/slots/bet', gameLimiter, clickInterval, requireAuth, async (req, res) => {
+  const parsed = slotsBetSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.issues[0]?.message ?? 'Invalid request' });
+    return;
+  }
+  const userId = req.user!.id;
+  const { betAmount } = parsed.data;
+
+  try {
+    await deductBet(userId, betAmount, 'slots');
+    const grid = spinGrid();
+    const { lines, totalPayout, win } = resolveSlots(grid, betAmount);
+    // settleBet receives the gross payout (stake + winnings); 0 on a loss.
+    const { newBalance } = await settleBet(
+      userId,
+      totalPayout,
+      betAmount,
+      win ? `win_${totalPayout}` : 'loss',
+      'slots',
+    );
+    io?.to(`user:${userId}`).emit('balance:update', { balance: newBalance });
+    await applyTierUp(userId);
+    // net profit shown to player = gross payout − stake (stake was already deducted)
+    res.json({ grid, lines, totalPayout, win, profit: totalPayout - betAmount, newBalance });
+  } catch (err: unknown) {
+    const code = (err as { code?: string }).code;
+    if (code === 'INSUFFICIENT_FUNDS') { res.status(402).json({ error: 'Insufficient funds' }); return; }
+    if (code === 'BET_TOO_SMALL') { res.status(400).json({ error: 'Bet amount too small' }); return; }
+    console.error('[games] slots bet error:', err);
     res.status(500).json({ error: 'An unexpected error occurred' });
   }
 });
