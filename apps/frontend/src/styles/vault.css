@@ -2068,3 +2068,55 @@ body::before {
   color: var(--text-muted); letter-spacing: 0.06em; text-align: center;
 }
 .banner-slots { background: radial-gradient(120% 120% at 30% 20%, rgba(212,168,87,0.22), transparent 60%); }
+
+/* ─── Crash ─────────────────────────────────────────────────────────────────── */
+.crash-stage {
+  display: flex; flex-direction: column; align-items: center;
+  gap: 18px; padding: 8px; width: 100%;
+}
+.crash-board {
+  position: relative; width: 100%; aspect-ratio: 16 / 9; min-height: 280px;
+  background:
+    radial-gradient(120% 120% at 50% 100%, rgba(0,224,130,0.06), transparent 60%),
+    var(--bg-inset);
+  border: 1px solid var(--border-strong); border-radius: var(--r-lg);
+  overflow: hidden; box-shadow: var(--inset-shadow);
+}
+.crash-board.busted { background: radial-gradient(120% 120% at 50% 100%, rgba(240,68,90,0.08), transparent 60%), var(--bg-inset); }
+.crash-board.cashed { background: radial-gradient(120% 120% at 50% 100%, rgba(33,208,122,0.10), transparent 60%), var(--bg-inset); }
+.crash-curve { position: absolute; inset: 0; width: 100%; height: 100%; }
+.crash-readout {
+  position: absolute; inset: 0; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 8px; pointer-events: none;
+}
+.crash-mult {
+  font-family: var(--font-mono, monospace); font-size: clamp(40px, 9vw, 78px);
+  font-weight: 800; line-height: 1; letter-spacing: -0.02em;
+  text-shadow: 0 2px 24px rgba(0,0,0,0.5);
+}
+.crash-caption {
+  font-family: var(--font-mono, monospace); font-size: 13px; font-weight: 700;
+  letter-spacing: 0.14em;
+}
+.crash-history { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; min-height: 24px; }
+.crash-hist-empty { font-family: var(--font-mono, monospace); font-size: 11px; color: var(--text-dim); letter-spacing: 0.08em; }
+.crash-chip {
+  font-family: var(--font-mono, monospace); font-size: 11px; font-weight: 700;
+  padding: 3px 8px; border-radius: var(--r-pill); border: 1px solid var(--border);
+}
+.crash-chip.win { color: var(--win); background: rgba(33,208,122,0.10); border-color: rgba(33,208,122,0.30); }
+.crash-chip.loss { color: var(--loss); background: rgba(240,68,90,0.08); border-color: rgba(240,68,90,0.25); }
+
+.crash-auto { display: flex; gap: 8px; align-items: stretch; }
+.crash-auto-toggle {
+  min-width: 52px; padding: 0 12px; border-radius: var(--r-sm);
+  font-family: var(--font-mono, monospace); font-size: 11px; font-weight: 700; letter-spacing: 0.06em;
+  background: var(--bg-elevated); color: var(--text-muted);
+  border: 1px solid var(--border); cursor: pointer; transition: all 0.15s;
+}
+.crash-auto-toggle:hover:not(:disabled) { border-color: var(--border-strong); color: var(--text); }
+.crash-auto-toggle.on { background: var(--accent); color: #021a0e; border-color: var(--accent); }
+.crash-auto-toggle:disabled { opacity: 0.5; cursor: not-allowed; }
+.crash-auto .amount-row .coin-suffix { font-size: 9px; }
+
+.banner-crash { background: radial-gradient(120% 120% at 30% 80%, rgba(0,224,130,0.16), transparent 60%); }

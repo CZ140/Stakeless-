@@ -4,12 +4,14 @@ import { z } from 'zod';
 import { requireAuth } from '../middleware/requireAuth.js';
 import { gameLimiter } from '../middleware/rateLimiter.js';
 import { clickInterval } from '../middleware/clickInterval.js';
-import { deductBet, settleBet, reconcileTier } from '../services/walletService.js';
+import { deductBet, settleBet } from '../services/walletService.js';
+import { applyTierUp } from '../services/tierNotify.js';
 import { resolveRouletteBets } from '../services/rouletteService.js';
 import { resolvePlinko, rollPlinkoBucket } from '../services/plinkoService.js';
 import { rollDice, resolveDice } from '../services/diceService.js';
 import { spinGrid } from '../services/slotsService.js';
-import { diceWinChance, diceWinChanceValid, resolveSlots } from '@gambling/shared';
+import { startCrashRound, manualCashout, reconcileActiveCrash } from '../services/crashService.js';
+import { diceWinChance, diceWinChanceValid, resolveSlots, CRASH, isValidAutoCashout } from '@gambling/shared';
 import {
   generateMineGrid,
   calculateMinesMultiplier,
@@ -35,28 +37,6 @@ import { eq, and, isNull, desc } from 'drizzle-orm';
 import { io } from '../socket/index.js';
 
 export const gamesRouter: IRouter = Router();
-
-// After a round settles, bring the player's tier in line with their new lifetime
-// wager. If they crossed a threshold, the reward was already credited inside
-// reconcileTier — push the updated balance again (so the chip flashes the bonus)
-// and a tier:up event the client turns into a celebration. Best-effort: a tier
-// reconcile failure must never fail the bet the player already won/lost.
-async function applyTierUp(userId: number): Promise<void> {
-  try {
-    const tierUp = await reconcileTier(userId);
-    if (tierUp) {
-      io?.to(`user:${userId}`).emit('balance:update', { balance: tierUp.newBalance });
-      io?.to(`user:${userId}`).emit('tier:up', {
-        level: tierUp.toLevel,
-        name: tierUp.name,
-        reward: tierUp.reward,
-        dailyBonus: tierUp.dailyBonus,
-      });
-    }
-  } catch (err) {
-    console.error('[games] tier reconcile error:', err);
-  }
-}
 
 // European wheel pocket sequence (clockwise from 12 o'clock, pocket 0 at top)
 const WHEEL_SEQUENCE = [
@@ -283,6 +263,121 @@ gamesRouter.post('/slots/bet', gameLimiter, clickInterval, requireAuth, async (r
     if (code === 'INSUFFICIENT_FUNDS') { res.status(402).json({ error: 'Insufficient funds' }); return; }
     if (code === 'BET_TOO_SMALL') { res.status(400).json({ error: 'Bet amount too small' }); return; }
     console.error('[games] slots bet error:', err);
+    res.status(500).json({ error: 'An unexpected error occurred' });
+  }
+});
+
+// ─── Crash ───────────────────────────────────────────────────────────────────
+
+const crashStartSchema = z.object({
+  betAmount: z.number().int().min(1).max(1_000_000),
+  // Optional auto-cash-out target; null/omitted = manual only. Range checked below.
+  autoCashout: z.number().min(1).max(CRASH.MAX_CRASH).nullable().optional(),
+});
+const crashCashoutSchema = z.object({ sessionId: z.number().int() });
+
+// POST /api/games/crash/start
+// Deducts the bet, draws a hidden crash point, persists the round, and arms its
+// auto-cash-out + bust timers. The crash point is NEVER returned (revealing it
+// would let a client cash out one tick before every bust). Returns the resume
+// info: { sessionId, startedAt, autoCashout, serverNow, newBalance }.
+// Returns 409 (with the running session) if a round is already in progress.
+gamesRouter.post('/crash/start', gameLimiter, clickInterval, requireAuth, async (req, res) => {
+  const parsed = crashStartSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.issues[0]?.message ?? 'Invalid request' });
+    return;
+  }
+  const userId = req.user!.id;
+  const { betAmount } = parsed.data;
+  const autoCashout = parsed.data.autoCashout ?? null;
+  if (autoCashout != null && !isValidAutoCashout(autoCashout)) {
+    res.status(400).json({ error: 'Auto cash-out must be at least 1.01×' });
+    return;
+  }
+
+  try {
+    // Settle/clean up any finished-but-unsettled round; reject if one is live.
+    const existing = await reconcileActiveCrash(userId);
+    if (existing && existing.status === 'running') {
+      res.status(409).json({
+        error: 'You already have a round in progress',
+        session: {
+          sessionId: existing.sessionId,
+          startedAt: existing.startedAt,
+          autoCashout: existing.autoCashout,
+          serverNow: Date.now(),
+        },
+      });
+      return;
+    }
+
+    const { newBalance } = await deductBet(userId, betAmount, 'crash');
+    // Reflect the stake immediately — the round may run for seconds before it settles.
+    io?.to(`user:${userId}`).emit('balance:update', { balance: newBalance });
+    const round = await startCrashRound(userId, betAmount, autoCashout);
+    res.json({
+      sessionId: round.sessionId,
+      startedAt: round.startedAt,
+      autoCashout: round.autoCashout,
+      serverNow: Date.now(),
+      newBalance,
+    });
+  } catch (err: unknown) {
+    const code = (err as { code?: string }).code;
+    if (code === 'INSUFFICIENT_FUNDS') { res.status(402).json({ error: 'Insufficient funds' }); return; }
+    if (code === 'BET_TOO_SMALL') { res.status(400).json({ error: 'Bet amount too small' }); return; }
+    console.error('[games] crash start error:', err);
+    res.status(500).json({ error: 'An unexpected error occurred' });
+  }
+});
+
+// POST /api/games/crash/cashout
+// Server-authoritative manual cash-out (computed from the server clock). Wins at
+// the current multiplier if it's below the hidden crash point, else reports a bust.
+// Returns 200 { win, multiplier?, payout?, crashPoint?, newBalance?, alreadySettled? }.
+// Returns 404 if the round doesn't exist / isn't the caller's.
+gamesRouter.post('/crash/cashout', gameLimiter, clickInterval, requireAuth, async (req, res) => {
+  const parsed = crashCashoutSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.issues[0]?.message ?? 'Invalid request' });
+    return;
+  }
+  const userId = req.user!.id;
+  try {
+    const result = await manualCashout(userId, parsed.data.sessionId);
+    if (result == null) {
+      res.status(404).json({ error: 'Round not found' });
+      return;
+    }
+    res.json(result);
+  } catch (err: unknown) {
+    console.error('[games] crash cashout error:', err);
+    res.status(500).json({ error: 'An unexpected error occurred' });
+  }
+});
+
+// GET /api/games/crash/active-session
+// Resume support: returns the live round so a refresh can rejoin the rising curve.
+// Lazily settles a round whose bust/auto moment already passed (→ session: null).
+gamesRouter.get('/crash/active-session', requireAuth, async (req, res) => {
+  const userId = req.user!.id;
+  try {
+    const recon = await reconcileActiveCrash(userId);
+    if (!recon || recon.status !== 'running') {
+      res.json({ session: null });
+      return;
+    }
+    res.json({
+      session: {
+        sessionId: recon.sessionId,
+        startedAt: recon.startedAt,
+        autoCashout: recon.autoCashout,
+        serverNow: Date.now(),
+      },
+    });
+  } catch (err: unknown) {
+    console.error('[games] crash active-session error:', err);
     res.status(500).json({ error: 'An unexpected error occurred' });
   }
 });

@@ -60,6 +60,13 @@ export const SlotsIcon = ({ size = 18 }: IconProps) => (
   </svg>
 );
 
+export const CrashIcon = ({ size = 18 }: IconProps) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" {...stroke}>
+    <path d="M4 19 C8 17 11 11 20 4" />
+    <path d="M20 4 L14 5 M20 4 L19 10" />
+  </svg>
+);
+
 export const PlinkoIcon = ({ size = 18 }: IconProps) => (
   <svg width={size} height={size} viewBox="0 0 24 24" {...stroke}>
     <circle cx="12" cy="5" r="1" />

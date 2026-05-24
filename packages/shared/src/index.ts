@@ -30,6 +30,18 @@ export {
 } from './slots.js';
 export type { SlotSymbolId, SlotSymbol, SlotGrid, SlotCell, SlotLineWin, SlotResult } from './slots.js';
 
+// Crash — rising-multiplier game. Curve math (time↔multiplier), the crash-point
+// distribution, and cash-out rules shared by backend (settlement + scheduling)
+// and frontend (live curve). See crash.ts for the model and the RTP derivation.
+export {
+  CRASH,
+  crashMultiplierAt,
+  crashTimeToReachMs,
+  crashPointFromUniform,
+  crashCashoutWins,
+  isValidAutoCashout,
+} from './crash.js';
+
 export interface ApiResponse<T = unknown> {
   success: boolean;
   data?: T;
@@ -42,7 +54,7 @@ export interface HealthResponse {
 }
 
 // Game types (stubs for future phases)
-export type GameType = 'roulette' | 'plinko' | 'mines' | 'blackjack' | 'dice' | 'slots';
+export type GameType = 'roulette' | 'plinko' | 'mines' | 'blackjack' | 'dice' | 'slots' | 'crash';
 
 // ─── Dice ─────────────────────────────────────────────────────────────────────
 // Pure dice math shared by the backend (settlement) and frontend (live readout)

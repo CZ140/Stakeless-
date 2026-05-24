@@ -13,6 +13,7 @@ const GAMES: GameCardData[] = [
   { id: 'plinko', name: 'Plinko', route: '/games/plinko', tag: 'Fast', description: 'Drop the ball, ride the pegs' },
   { id: 'dice', name: 'Dice', route: '/games/dice', tag: 'Fast', description: 'Pick your odds, roll the number' },
   { id: 'slots', name: 'Slots', route: '/games/slots', tag: 'Fast', description: '3×3 reels · 5 paylines' },
+  { id: 'crash', name: 'Crash', route: '/games/crash', tag: 'Risk', description: 'Ride the curve, cash out before it busts' },
   { id: 'mines', name: 'Mines', route: '/games/mines', tag: 'Risk', description: 'Avoid the mines, cash out big' },
   { id: 'blackjack', name: 'Blackjack', route: '/games/blackjack', tag: 'Strategy', description: 'Beat the dealer to 21' },
 ];

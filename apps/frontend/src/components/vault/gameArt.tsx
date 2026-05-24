@@ -97,6 +97,21 @@ const SlotsArt = () => (
   </svg>
 );
 
+const CrashArt = () => (
+  <svg width="64" height="64" viewBox="0 0 64 64" fill="none">
+    {/* rising curve */}
+    <path d="M8 52 C20 48 28 34 50 12" stroke="#00E082" strokeWidth="2.4" fill="none" strokeLinecap="round" />
+    <path d="M8 52 C20 48 28 34 50 12 L50 52 Z" fill="rgba(0,224,130,0.16)" />
+    {/* rocket head */}
+    <g transform="rotate(45 50 12)">
+      <path d="M50 6 C53 9 53 14 50 18 C47 14 47 9 50 6 Z" fill="#F5D68A" stroke="#D4A857" strokeWidth="0.8" />
+      <circle cx="50" cy="12" r="1.4" fill="#1a1208" />
+      <path d="M47 16 L45 20 M53 16 L55 20" stroke="#F0445A" strokeWidth="1.4" strokeLinecap="round" />
+    </g>
+    <circle cx="14" cy="49" r="1.6" fill="rgba(0,224,130,0.5)" />
+  </svg>
+);
+
 export const gameArt: Record<string, () => ReactElement> = {
   roulette: RouletteArt,
   plinko: PlinkoArt,
@@ -104,4 +119,5 @@ export const gameArt: Record<string, () => ReactElement> = {
   blackjack: BlackjackArt,
   dice: DiceArt,
   slots: SlotsArt,
+  crash: CrashArt,
 };
