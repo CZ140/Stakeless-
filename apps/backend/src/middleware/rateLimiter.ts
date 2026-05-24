@@ -17,5 +17,8 @@ export const gameLimiter = rateLimit({
   max: 30,
   standardHeaders: true,
   legacyHeaders: false,
+  // Integration tests make many game POSTs from one IP within a minute; the
+  // limit itself is verified separately, so skip it under test.
+  skip: () => process.env.NODE_ENV === 'test',
   message: { error: 'Too many requests. Slow down.' },
 });

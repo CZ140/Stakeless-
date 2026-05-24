@@ -94,11 +94,13 @@ profileRouter.get('/:username', async (req, res) => {
     const net = sql<number>`${gameLogs.profit} - ${gameLogs.betAmount}`;
 
     const [rankRow, totalsRow, daily, gameMix, biggestRows, activeDays] = await Promise.all([
-      // Balance rank via window function
+      // Balance rank = (number of users with a strictly higher balance) + 1.
+      // Computed against the whole users table — a window function filtered to a
+      // single row would always return 1. Uses the already-fetched user.balance.
       db
-        .select({ rank: sql<number>`rank() over (order by ${users.balance} desc)`.mapWith(Number) })
+        .select({ rank: sql<number>`count(*) + 1`.mapWith(Number) })
         .from(users)
-        .where(eq(users.id, user.id)),
+        .where(sql`${users.balance} > ${user.balance}`),
 
       // Totals: games played, wins (net > 0), games today, net today
       db

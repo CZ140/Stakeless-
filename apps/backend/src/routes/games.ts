@@ -97,7 +97,7 @@ gamesRouter.post('/roulette/bet', gameLimiter, clickInterval, requireAuth, async
       'roulette',
     );
 
-    io.to(`user:${userId}`).emit('balance:update', { balance: newBalance });
+    io?.to(`user:${userId}`).emit('balance:update', { balance: newBalance });
     res.json({ winningPocket, profit, newBalance });
   } catch (err: unknown) {
     const code = (err as { code?: string }).code;
@@ -145,7 +145,7 @@ gamesRouter.post('/plinko/bet', gameLimiter, clickInterval, requireAuth, async (
     // profit passed to settleBet = floor(betAmount * multiplier) which is the gross payout.
     const grossPayout = Math.floor(betAmount * multiplier);
     const { newBalance } = await settleBet(userId, grossPayout, betAmount, `bucket_${bucket}`, 'plinko');
-    io.to(`user:${userId}`).emit('balance:update', { balance: newBalance });
+    io?.to(`user:${userId}`).emit('balance:update', { balance: newBalance });
     // net profit shown to player = gross payout - stake (stake was already deducted)
     res.json({ bucket, multiplier, profit: grossPayout - betAmount, newBalance });
   } catch (err: unknown) {
@@ -285,7 +285,7 @@ gamesRouter.post('/mines/tile', gameLimiter, clickInterval, requireAuth, async (
         .where(eq(gameSessions.id, sessionId));
 
       const { newBalance } = await settleBet(userId, 0, session.betAmount, 'exploded', 'mines');
-      io.to(`user:${userId}`).emit('balance:update', { balance: newBalance });
+      io?.to(`user:${userId}`).emit('balance:update', { balance: newBalance });
 
       res.json({ hit: true, mineGrid: state.grid });
       return;
@@ -374,7 +374,7 @@ gamesRouter.post('/mines/cashout', gameLimiter, clickInterval, requireAuth, asyn
       'mines',
     );
 
-    io.to(`user:${userId}`).emit('balance:update', { balance: newBalance });
+    io?.to(`user:${userId}`).emit('balance:update', { balance: newBalance });
     res.json({ payout, newBalance, mineGrid: state.grid });
   } catch (err: unknown) {
     console.error('[games] mines cashout error:', err);
@@ -500,7 +500,7 @@ async function settleBlackjack(
     .update(gameSessions)
     .set({ state: JSON.stringify(state), completedAt: new Date() })
     .where(eq(gameSessions.id, sessionId));
-  io.to(`user:${userId}`).emit('balance:update', { balance: newBalance });
+  io?.to(`user:${userId}`).emit('balance:update', { balance: newBalance });
   return newBalance;
 }
 
