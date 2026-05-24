@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { AppShell } from '../components/vault/AppShell';
 import { TrophyIcon } from '../components/vault/icons';
+import { TierBadge } from '../components/vault/TierBadge';
 import { useLeaderboard } from '../hooks/useLeaderboard';
 import { useLeaderboardStore } from '../stores/leaderboardStore';
 import { useAuth } from '../contexts/AuthContext';
@@ -47,9 +48,9 @@ export function LeaderboardPage() {
     setIsLoading(true);
     apiClient
       .get<{
-        byBalance: { id: number; username: string; value: number }[];
-        byWagered: { id: number; username: string; value: number }[];
-        byProfit: { id: number; username: string; value: number }[];
+        byBalance: { id: number; username: string; value: number; tierLevel: number }[];
+        byWagered: { id: number; username: string; value: number; tierLevel: number }[];
+        byProfit: { id: number; username: string; value: number; tierLevel: number }[];
         ownRanks: {
           balance: { rank: number; value: number } | null;
           wagered: { rank: number; value: number } | null;
@@ -133,6 +134,7 @@ export function LeaderboardPage() {
                 <div className="ava">{initial(p.username)}</div>
                 <div className="pname">
                   <Link to={`/profile/${p.username}`}>{p.username}</Link>
+                  <TierBadge level={p.tierLevel} size={12} />
                   {isYou && <span className="you-tag">YOU</span>}
                 </div>
                 <div className={`amt ${signClass(activeTab, p.value)}`}>
@@ -173,6 +175,7 @@ export function LeaderboardPage() {
                   <span className="ava-sm">{initial(p.username)}</span>
                   <div>
                     <Link to={`/profile/${p.username}`}>{p.username}</Link>
+                    <TierBadge level={p.tierLevel} size={12} />
                     {isYou && <span className="you-tag">YOU</span>}
                   </div>
                 </div>

@@ -1,5 +1,18 @@
 // Shared TypeScript types for @gambling/shared
-// Only export interfaces/types — no runtime values in Phase 1
+
+// Tier progression — table + helpers shared by backend (persistence, rewards,
+// daily bonus) and frontend (badges, profile ladder). Named re-exports document
+// the public API. NOTE: this package needs "type": "module" in package.json —
+// without it Node treats these files as CommonJS and `import { TIERS }` fails to
+// bind statically (only dynamic import would see the names).
+export {
+  TIERS,
+  tierLevelForWagered,
+  tierForWagered,
+  tierByLevel,
+  nextTier,
+} from './tiers.js';
+export type { Tier } from './tiers.js';
 
 export interface ApiResponse<T = unknown> {
   success: boolean;

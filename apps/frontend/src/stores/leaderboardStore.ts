@@ -4,6 +4,7 @@ export interface LeaderboardRow {
   id: number;
   username: string;
   value: number;
+  tierLevel: number;
 }
 
 export interface LeaderboardSnapshot {

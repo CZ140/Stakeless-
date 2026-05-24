@@ -1557,6 +1557,98 @@ body::before {
 .tier-progress .pct small { font-size: 13px; color: var(--text-muted); font-weight: 500; margin-left: 2px; }
 .tier-progress .sub { font-size: 10px; color: var(--text-muted); letter-spacing: 0.14em; text-transform: uppercase; margin-top: 4px; }
 
+/* ── Tier badge (inline flair on leaderboard, balance chip, profile) ── */
+.tier-badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  vertical-align: middle; line-height: 0;
+  filter: drop-shadow(0 0 4px color-mix(in srgb, var(--tier-color, var(--accent)) 55%, transparent));
+}
+.tier-badge-name {
+  font-family: var(--font-mono); font-size: 10px; font-weight: 600;
+  letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--tier-color, var(--text-secondary)); line-height: 1;
+}
+.balance-chip .chip-tier { margin-right: 2px; }
+.tier-tag { background: color-mix(in srgb, currentColor 12%, transparent) !important; }
+
+/* ── Tier perks row (under the ladder on the profile) ── */
+.tier-perks {
+  display: flex; flex-wrap: wrap; gap: 10px 22px;
+  margin: -10px 0 22px; padding: 12px 22px;
+  background: var(--bg-surface); border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+}
+.tier-perk { display: flex; align-items: center; gap: 8px; }
+.tier-perk-ico { display: grid; place-items: center; flex-shrink: 0; }
+.tier-perk-txt { font-size: 12px; color: var(--text-secondary); }
+.tier-perk-txt strong { color: var(--text); font-weight: 700; }
+
+/* ── Tier-up celebration modal ── */
+.tierup-overlay {
+  position: fixed; inset: 0; z-index: 100;
+  display: grid; place-items: center; padding: 24px;
+  background: rgba(6, 9, 13, 0.72);
+  backdrop-filter: blur(6px);
+  animation: tierup-fade 0.2s ease-out;
+}
+.tierup-card {
+  position: relative; overflow: hidden;
+  width: min(380px, 100%);
+  text-align: center;
+  padding: 34px 30px 28px;
+  background: var(--bg-elevated);
+  border: 1px solid color-mix(in srgb, var(--tier-color) 45%, var(--border-strong));
+  border-radius: var(--r-lg);
+  box-shadow: 0 24px 60px rgba(0,0,0,0.55), 0 0 50px color-mix(in srgb, var(--tier-color) 22%, transparent);
+  animation: tierup-pop 0.32s cubic-bezier(0.2, 0.9, 0.3, 1.3);
+}
+.tierup-close {
+  position: absolute; top: 12px; right: 12px;
+  width: 28px; height: 28px; display: grid; place-items: center;
+  background: transparent; border: none; cursor: pointer;
+  color: var(--text-muted); border-radius: var(--r-md);
+}
+.tierup-close:hover { color: var(--text); background: var(--bg-inset); }
+.tierup-rays {
+  position: absolute; top: -40%; left: 50%; transform: translateX(-50%);
+  width: 320px; height: 320px; pointer-events: none;
+  background: radial-gradient(circle, color-mix(in srgb, var(--tier-color) 30%, transparent) 0%, transparent 62%);
+  animation: tierup-glow 2.4s ease-in-out infinite;
+}
+.tierup-gem {
+  position: relative; display: grid; place-items: center;
+  width: 90px; height: 90px; margin: 4px auto 14px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--tier-color) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--tier-color) 40%, transparent);
+  filter: drop-shadow(0 0 14px color-mix(in srgb, var(--tier-color) 60%, transparent));
+}
+.tierup-eyebrow {
+  font-family: var(--font-mono); font-size: 10px; font-weight: 600;
+  letter-spacing: 0.22em; text-transform: uppercase; color: var(--text-muted);
+}
+.tierup-name {
+  font-size: 30px; font-weight: 800; letter-spacing: -0.01em; margin: 4px 0 18px;
+  color: var(--tier-color);
+  text-shadow: 0 0 20px color-mix(in srgb, var(--tier-color) 45%, transparent);
+}
+.tierup-perks { display: flex; flex-direction: column; gap: 10px; margin-bottom: 22px; }
+.tierup-perk {
+  display: flex; align-items: center; justify-content: center; gap: 9px;
+  font-size: 13px; color: var(--text-secondary);
+}
+.tierup-perk strong { color: var(--text); font-weight: 700; }
+.tierup-perk-ico {
+  display: grid; place-items: center; flex-shrink: 0;
+  width: 28px; height: 28px; border-radius: 50%;
+  background: var(--bg-inset); color: var(--gold);
+}
+.tierup-cta { width: 100%; justify-content: center; }
+
+@keyframes tierup-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes tierup-pop { from { opacity: 0; transform: scale(0.9) translateY(8px); } to { opacity: 1; transform: none; } }
+@keyframes tierup-glow { 0%, 100% { opacity: 0.55; } 50% { opacity: 1; } }
+
 /* Stat grid (6 across) */
 .acc-stat-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; margin-bottom: 18px; }
 .acc-stat-grid .stat-card { background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--r-lg); padding: 16px 16px 14px; position: relative; overflow: hidden; }

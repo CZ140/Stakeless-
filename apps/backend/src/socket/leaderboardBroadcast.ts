@@ -9,17 +9,17 @@ let broadcastInterval: ReturnType<typeof setInterval> | null = null;
 async function fetchLeaderboardSnapshot() {
   const [byBalance, byWagered, byProfit] = await Promise.all([
     db
-      .select({ id: users.id, username: users.username, value: users.balance })
+      .select({ id: users.id, username: users.username, value: users.balance, tierLevel: users.tierLevel })
       .from(users)
       .orderBy(desc(users.balance), asc(users.id))
       .limit(25),
     db
-      .select({ id: users.id, username: users.username, value: users.totalWagered })
+      .select({ id: users.id, username: users.username, value: users.totalWagered, tierLevel: users.tierLevel })
       .from(users)
       .orderBy(desc(users.totalWagered), asc(users.id))
       .limit(25),
     db
-      .select({ id: users.id, username: users.username, value: users.totalProfit })
+      .select({ id: users.id, username: users.username, value: users.totalProfit, tierLevel: users.tierLevel })
       .from(users)
       .orderBy(desc(users.totalProfit), asc(users.id))
       .limit(25),

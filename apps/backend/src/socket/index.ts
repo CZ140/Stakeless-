@@ -7,6 +7,7 @@ interface LeaderboardRow {
   id: number;
   username: string;
   value: number;
+  tierLevel: number;
 }
 
 interface LeaderboardSnapshot {
@@ -15,9 +16,17 @@ interface LeaderboardSnapshot {
   byProfit: LeaderboardRow[];
 }
 
+interface TierUpEvent {
+  level: number;
+  name: string;
+  reward: number;
+  dailyBonus: number;
+}
+
 interface ServerToClientEvents {
   'leaderboard:update': (data: LeaderboardSnapshot) => void;
   'balance:update': (data: { balance: number }) => void;
+  'tier:up': (data: TierUpEvent) => void;
 }
 
 interface ClientToServerEvents {
