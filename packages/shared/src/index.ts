@@ -179,6 +179,8 @@ export type {
   PublicSeat,
   PublicTableState,
   PrivateHand,
+  PokerHandResult,
+  PokerHandResultSeat,
   PokerTableSummary,
   PokerStakeId,
 } from './poker.js';

@@ -348,6 +348,28 @@ export interface PrivateHand {
   holeCards: Card[];
 }
 
+// The outcome of one finished hand — emitted to the table for display.
+export interface PokerHandResultSeat {
+  seatIndex: number;
+  userId: number;
+  username: string;
+  won: number; // chips won from the pot(s)
+  net: number; // won minus chips put in this hand
+  committed: number;
+  holeCards: Card[] | null; // revealed only at showdown for non-folded seats
+  handName?: string; // e.g. "Two Pair" (shown hands only)
+  folded: boolean;
+}
+
+export interface PokerHandResult {
+  handNumber: number;
+  board: Card[];
+  potTotal: number;
+  showdown: boolean; // false when everyone folded to one player
+  seats: PokerHandResultSeat[];
+  winners: number[]; // seat indexes that won chips
+}
+
 // Lobby row — one available/joinable table.
 export interface PokerTableSummary {
   id: number;

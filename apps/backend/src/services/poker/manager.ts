@@ -7,6 +7,7 @@ import { eq, and, inArray, sql } from 'drizzle-orm';
 import { db } from '../../db/index.js';
 import { users, pokerTables, pokerSeats, groupMembers } from '../../db/schema.js';
 import { PokerTable } from './table.js';
+import { decideBotAction, BOT_NAMES } from './bot.js';
 import { POKER } from '@gambling/shared';
 import type { PokerAction, PublicTableState, PrivateHand, PokerTableSummary } from '@gambling/shared';
 
@@ -36,8 +37,15 @@ export interface ManagerHooks {
   onHandEnded?: (tableId: number) => void; // schedule the next hand (with a delay)
 }
 
+interface TableMeta {
+  botTarget: number;
+  maxBuyIn: number;
+  bigBlind: number;
+}
+
 class TableManager {
   private engines = new Map<number, PokerTable>();
+  private meta = new Map<number, TableMeta>();
   hooks: ManagerHooks = {};
 
   // Build (or fetch) the live engine for a table, seating the persisted humans.
@@ -47,6 +55,7 @@ class TableManager {
 
     const [cfg] = await db.select().from(pokerTables).where(eq(pokerTables.id, tableId));
     if (!cfg) throw err('NOT_FOUND', 'Table not found');
+    this.meta.set(tableId, { botTarget: cfg.botTarget, maxBuyIn: cfg.maxBuyIn, bigBlind: cfg.bigBlind });
     const eng = new PokerTable({
       id: cfg.id,
       name: cfg.name,
@@ -217,7 +226,12 @@ class TableManager {
     if (!seat) throw err('NOT_SEATED', 'You are not at this table');
     if (eng.actingIndex !== seat.seatIndex) throw err('NOT_YOUR_TURN', 'It is not your turn');
     eng.applyAction(seat.seatIndex, action); // throws coded ILLEGAL_ACTION / NOT_YOUR_TURN
+    await this.afterAction(tableId, eng);
+  }
 
+  // After ANY action (human, bot, or timeout): settle if the hand ended, else
+  // notify the realtime layer to push state + arm the next actor (timer / bot).
+  private async afterAction(tableId: number, eng: PokerTable): Promise<void> {
     if (!eng.isHandInProgress() && eng.street === 'showdown') {
       await this.settle(tableId, eng);
     } else {
@@ -226,9 +240,67 @@ class TableManager {
     }
   }
 
+  // Apply the current bot's decision (called by the realtime layer on a delay, or
+  // synchronously by tests). Returns false if the actor isn't a bot.
+  async runBotAction(tableId: number): Promise<boolean> {
+    const eng = this.engines.get(tableId);
+    if (!eng || eng.actingIndex === null) return false;
+    const seat = eng.occupiedSeats().find((s) => s.seatIndex === eng.actingIndex);
+    if (!seat || !seat.isBot) return false;
+    const legal = eng.legalFor(seat.seatIndex);
+    const pot = eng.toPublicState().totalPot;
+    const action = decideBotAction({
+      holeCards: seat.holeCards,
+      board: eng.board,
+      legal,
+      pot,
+      toCall: Math.max(0, eng.currentBet - seat.committedThisStreet),
+      currentBet: eng.currentBet,
+      committedThisStreet: seat.committedThisStreet,
+      bigBlind: eng.config.bigBlind,
+      stack: seat.stack,
+    });
+    eng.applyAction(seat.seatIndex, action);
+    await this.afterAction(tableId, eng);
+    return true;
+  }
+
+  // The acting seat ran out of time: auto-check if legal, otherwise fold.
+  async timeoutCurrentActor(tableId: number): Promise<void> {
+    const eng = this.engines.get(tableId);
+    if (!eng || eng.actingIndex === null) return;
+    const la = eng.legalFor(eng.actingIndex);
+    eng.applyAction(eng.actingIndex, la.canCheck ? { type: 'check' } : { type: 'fold' });
+    await this.afterAction(tableId, eng);
+  }
+
   // ─── Hand lifecycle ───────────────────────────────────────────────────────────
+  private hasHuman(eng: PokerTable): boolean {
+    return eng.occupiedSeats().some((s) => !s.isBot);
+  }
+
+  // Fill empty seats with bots up to the table's botTarget (only while a human is
+  // present). Bots have a synthetic negative userId and a house-funded stack.
+  private fillBots(tableId: number, eng: PokerTable): void {
+    const m = this.meta.get(tableId);
+    if (!m || m.botTarget <= 0 || !this.hasHuman(eng)) return;
+    const taken = new Set(eng.occupiedSeats().map((s) => s.seatIndex));
+    const usedNames = new Set(eng.occupiedSeats().filter((s) => s.isBot).map((s) => s.username));
+    let bots = eng.occupiedSeats().filter((s) => s.isBot).length;
+    for (let seatIdx = 0; seatIdx < eng.config.maxSeats && bots < m.botTarget; seatIdx++) {
+      if (taken.has(seatIdx)) continue;
+      const name = BOT_NAMES.find((n) => !usedNames.has(`Bot ${n}`)) ?? `Bot ${bots + 1}`;
+      const username = name.startsWith('Bot ') ? name : `Bot ${name}`;
+      usedNames.add(username);
+      eng.seatPlayer(seatIdx, { userId: -(seatIdx + 1), username, avatarColor: null, isBot: true, stack: m.maxBuyIn });
+      taken.add(seatIdx);
+      bots++;
+    }
+  }
+
   private maybeStartHand(tableId: number, eng: PokerTable): void {
-    if (eng.canStartHand()) {
+    this.fillBots(tableId, eng);
+    if (eng.canStartHand() && this.hasHuman(eng)) {
       eng.startHand();
       this.hooks.onActorChanged?.(tableId);
       this.hooks.onStateChange?.(tableId);
@@ -238,7 +310,8 @@ class TableManager {
   // Called by P4 (after a short delay) or directly by tests to deal the next hand.
   async startNextHandIfReady(tableId: number): Promise<boolean> {
     const eng = await this.loadEngine(tableId);
-    if (!eng.canStartHand()) return false;
+    this.fillBots(tableId, eng);
+    if (!eng.canStartHand() || !this.hasHuman(eng)) return false;
     eng.startHand();
     this.hooks.onActorChanged?.(tableId);
     this.hooks.onStateChange?.(tableId);
@@ -260,9 +333,17 @@ class TableManager {
       await this.cashOut(s.userId, tableId, s.stack);
       eng.removeSeat(s.seatIndex);
     }
+    // House-fund any busted bot back to a full buy-in so it keeps playing.
+    const m = this.meta.get(tableId);
+    if (m) {
+      for (const s of eng.occupiedSeats().filter((x) => x.isBot && x.stack < m.bigBlind)) {
+        eng.refillSeat(s.seatIndex, m.maxBuyIn);
+      }
+    }
     this.hooks.onHandResult?.(tableId);
     this.hooks.onStateChange?.(tableId);
-    this.hooks.onHandEnded?.(tableId);
+    // Only keep the game going while a human is present.
+    if (this.hasHuman(eng)) this.hooks.onHandEnded?.(tableId);
   }
 
   // Test helper: drop all in-memory engines (the DB is truncated between tests, so

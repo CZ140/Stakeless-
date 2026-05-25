@@ -18,6 +18,8 @@ import {
   type PublicTableState,
   type PrivateHand,
   type SeatContribution,
+  type PokerHandResult,
+  type PokerHandResultSeat,
 } from '@gambling/shared';
 import { shuffledDeck } from './deck.js';
 
@@ -53,27 +55,6 @@ export interface TableConfig {
   maxSeats: number;
 }
 
-export interface HandResultSeat {
-  seatIndex: number;
-  userId: number;
-  username: string;
-  won: number; // chips won from pots
-  net: number; // won - committedThisHand (this hand's profit/loss)
-  committed: number;
-  holeCards: Card[] | null; // revealed only if shown at showdown
-  handName?: string;
-  folded: boolean;
-}
-
-export interface HandResult {
-  handNumber: number;
-  board: Card[];
-  potTotal: number;
-  showdown: boolean;
-  seats: HandResultSeat[];
-  winners: number[]; // seat indexes that won chips
-}
-
 const HAND_NAMES = [
   'High Card', 'Pair', 'Two Pair', 'Three of a Kind', 'Straight',
   'Flush', 'Full House', 'Four of a Kind', 'Straight Flush',
@@ -90,7 +71,7 @@ export class PokerTable {
   currentBet = 0;
   minRaise = 0;
   handNumber = 0;
-  lastResult: HandResult | null = null;
+  lastResult: PokerHandResult | null = null;
   // Seats whose hole cards were revealed at the last showdown (for the public view).
   private shown = new Set<number>();
 
@@ -118,6 +99,15 @@ export class PokerTable {
       inHand: false,
       leaving: false,
     };
+  }
+
+  // Top a seat's stack up to `amount` (used to house-fund a busted bot between
+  // hands). Only valid when no hand is in progress.
+  refillSeat(seatIndex: number, amount: number): void {
+    const s = this.seats[seatIndex];
+    // startHand() re-derives eligibility from stack > 0, so just topping up the
+    // stack makes the seat playable on the next deal.
+    if (s && !this.isHandInProgress()) s.stack = amount;
   }
 
   // Remove a seat. Returns the chips that seat should cash out (its stack).
@@ -432,7 +422,7 @@ export class PokerTable {
   ): void {
     const inHand = this.occupiedSeats().filter((s) => s.inHand);
     const potTotal = pots.reduce((a, p) => a + p.amount, 0);
-    const resultSeats: HandResultSeat[] = inHand.map((s) => {
+    const resultSeats: PokerHandResultSeat[] = inHand.map((s) => {
       const won = winnings.get(s.seatIndex) ?? 0;
       s.stack += won;
       const reveal = showdown && this.shown.has(s.seatIndex) && s.status !== 'folded';
