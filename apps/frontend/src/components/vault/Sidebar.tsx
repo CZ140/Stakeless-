@@ -18,8 +18,11 @@ import {
   BlackjackIcon,
   LeaderboardIcon,
   ProfileIcon,
+  FriendsIcon,
+  GroupsIcon,
   LogoutIcon,
 } from './icons';
+import { useFriendsStore } from '../../stores/friendsStore';
 
 type NavEntry = {
   to: string;
@@ -47,8 +50,11 @@ const games: NavEntry[] = [
 
 export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   const { username, signOut } = useAuth();
+  const incomingCount = useFriendsStore((s) => s.incoming.length);
   const account: NavEntry[] = [
-    { to: '/leaderboard', label: 'Leaderboard', Icon: LeaderboardIcon, pill: 'NEW' },
+    { to: '/leaderboard', label: 'Leaderboard', Icon: LeaderboardIcon },
+    { to: '/friends', label: 'Friends', Icon: FriendsIcon, pill: incomingCount > 0 ? String(incomingCount) : undefined },
+    { to: '/groups', label: 'Groups', Icon: GroupsIcon },
     { to: username ? `/profile/${username}` : '/leaderboard', label: 'Profile', Icon: ProfileIcon },
   ];
 

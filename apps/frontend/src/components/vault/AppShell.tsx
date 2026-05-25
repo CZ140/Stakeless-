@@ -2,6 +2,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { useLocation } from 'react-router-dom';
 import { Sidebar } from './Sidebar';
 import { TopBar } from './TopBar';
+import { useSocial } from '../../hooks/useSocial';
 
 // The Vault app shell: fixed sidebar + top bar, with a scrolling content area.
 // Pages render their content as children inside <main>.
@@ -12,6 +13,9 @@ import { TopBar } from './TopBar';
 export function AppShell({ children }: { children: ReactNode }) {
   const [navOpen, setNavOpen] = useState(false);
   const location = useLocation();
+
+  // Seed + live-update the social badges (friend requests, group invites).
+  useSocial();
 
   // Close the mobile drawer whenever the route changes.
   useEffect(() => {

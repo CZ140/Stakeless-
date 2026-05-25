@@ -18,6 +18,9 @@ import { SlotsPage } from './pages/SlotsPage';
 import { CrashPage } from './pages/CrashPage';
 import { BlackjackPage } from './pages/BlackjackPage';
 import { LeaderboardPage } from './pages/LeaderboardPage';
+import { FriendsPage } from './pages/FriendsPage';
+import { GroupsPage } from './pages/GroupsPage';
+import { GroupDetailPage } from './pages/GroupDetailPage';
 import { ProfilePage } from './pages/ProfilePage';
 import { AdminPage } from './pages/AdminPage';
 import { ProtectedRoute } from './components/ProtectedRoute';
@@ -151,6 +154,30 @@ export default function App() {
         }
       />
       <Route path="/leaderboard" element={<LeaderboardPage />} />
+      <Route
+        path="/friends"
+        element={
+          <ProtectedRoute>
+            <FriendsPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/groups"
+        element={
+          <ProtectedRoute>
+            <GroupsPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/groups/:id"
+        element={
+          <ProtectedRoute>
+            <GroupDetailPage />
+          </ProtectedRoute>
+        }
+      />
       <Route path="/profile/:username" element={<ProfilePage />} />
       <Route
         path="/admin"

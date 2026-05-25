@@ -261,6 +261,63 @@ export const BombIcon = ({ size = 32 }: IconProps) => (
   </svg>
 );
 
+// ─── Social layer (Friends · Groups) ─────────────────────────────────────────
+// Two people side by side.
+export const FriendsIcon = ({ size = 18 }: IconProps) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" {...stroke}>
+    <circle cx="9" cy="8" r="3.2" />
+    <path d="M3.5 19 C3.5 15.4 6 13.5 9 13.5 C12 13.5 14.5 15.4 14.5 19" />
+    <path d="M16 5.4 A3 3 0 0 1 16 11" />
+    <path d="M17 13.7 C19.4 14.2 21 16 21 19" />
+  </svg>
+);
+// A small cluster of three (a group).
+export const GroupsIcon = ({ size = 18 }: IconProps) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" {...stroke}>
+    <circle cx="12" cy="7" r="2.8" />
+    <circle cx="5.5" cy="10.5" r="2.2" />
+    <circle cx="18.5" cy="10.5" r="2.2" />
+    <path d="M7.5 19 C7.5 15.8 9.5 14 12 14 C14.5 14 16.5 15.8 16.5 19" />
+    <path d="M2.5 18 C2.5 15.6 3.8 14.2 5.5 14.2" />
+    <path d="M21.5 18 C21.5 15.6 20.2 14.2 18.5 14.2" />
+  </svg>
+);
+export const CheckIcon = ({ size = 14 }: IconProps) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" {...stroke}>
+    <path d="M5 12.5 L10 17.5 L19 6.5" />
+  </svg>
+);
+export const RefreshIcon = ({ size = 14 }: IconProps) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" {...stroke}>
+    <path d="M20 11 A8 8 0 1 0 18.5 6.5" />
+    <path d="M20 3.5 L20 7 L16.5 7" />
+  </svg>
+);
+export const ArrowRightIcon = ({ size = 14 }: IconProps) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" {...stroke}>
+    <path d="M4 12 H19 M13 6 L19 12 L13 18" />
+  </svg>
+);
+export const PencilIcon = ({ size = 13 }: IconProps) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" {...stroke}>
+    <path d="M14 4 L20 10 L9 21 L3 21 L3 15 Z" />
+    <path d="M13 5 L19 11" />
+  </svg>
+);
+export const KebabIcon = ({ size = 16 }: IconProps) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor">
+    <circle cx="12" cy="5" r="1.7" />
+    <circle cx="12" cy="12" r="1.7" />
+    <circle cx="12" cy="19" r="1.7" />
+  </svg>
+);
+export const TransferIcon = ({ size = 13 }: IconProps) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" {...stroke}>
+    <path d="M4 8 L18 8 M14 4 L18 8 L14 12" />
+    <path d="M20 16 L6 16 M10 20 L6 16 L10 12" />
+  </svg>
+);
+
 // Map keyed by game id, for activity rows etc.
 export const gameIcons: Record<string, (props: IconProps) => ReactElement> = {
   roulette: RouletteIcon,
