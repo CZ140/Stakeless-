@@ -1,10 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
+import gsap from 'gsap';
 import { crashMultiplierAt, crashTimeToReachMs } from '@gambling/shared';
 import { AppShell } from '../components/vault/AppShell';
 import { BetPanel } from '../components/vault/BetPanel';
 import { useCrashStore } from '../stores/crashStore';
 import { useBalanceStore } from '../stores/balanceStore';
-import { useGameSounds } from '../hooks/useGameSounds';
+import { useAudioStore } from '../stores/audioStore';
+import { sound, type SoundHandle } from '../lib/sound';
+import { celebrate, flash, screenShake, winTier } from '../lib/juice';
+import { prefersReducedMotion } from '../hooks/useReducedMotion';
 import { apiClient } from '../api/client';
 import { socket } from '../socket';
 
@@ -29,7 +33,7 @@ interface ActiveResponse {
 
 // Curve chart in a 0–100 viewBox. Sampled from the shared multiplier curve so the
 // shape matches the server's settlement exactly. x spans a rolling ≥5s window, y
-// auto-zooms to keep the head in frame; both freeze when the round settles.
+// auto-zooms to keep the head in frame (camera follow); both freeze on settle.
 function CrashCurve({ mult, color }: { mult: number; color: string }) {
   const tEnd = crashTimeToReachMs(mult);
   const xMax = Math.max(tEnd, 5000);
@@ -53,32 +57,76 @@ function CrashCurve({ mult, color }: { mult: number; color: string }) {
           <stop offset="0%" stopColor={color} stopOpacity="0.28" />
           <stop offset="100%" stopColor={color} stopOpacity="0" />
         </linearGradient>
+        <filter id="crash-glow" x="-50%" y="-50%" width="200%" height="200%">
+          <feGaussianBlur stdDeviation="1.1" result="b" />
+          <feMerge>
+            <feMergeNode in="b" />
+            <feMergeNode in="SourceGraphic" />
+          </feMerge>
+        </filter>
       </defs>
       <path d={area} fill="url(#crash-fill)" />
-      <path d={line} fill="none" stroke={color} strokeWidth="1.6" vectorEffect="non-scaling-stroke" strokeLinejoin="round" />
-      <circle cx={head[0]} cy={head[1]} r="1.6" fill={color} vectorEffect="non-scaling-stroke" />
+      <path
+        d={line}
+        fill="none"
+        stroke={color}
+        strokeWidth="1.6"
+        vectorEffect="non-scaling-stroke"
+        strokeLinejoin="round"
+        filter="url(#crash-glow)"
+      />
+      {/* Glowing, pulsing head */}
+      <circle className="crash-head-halo" cx={head[0]} cy={head[1]} r="3.4" fill={color} opacity="0.3" />
+      <circle cx={head[0]} cy={head[1]} r="1.7" fill={color} vectorEffect="non-scaling-stroke" filter="url(#crash-glow)" />
     </svg>
   );
 }
 
 export function CrashPage() {
   const {
-    betAmount, autoEnabled, autoValue, isMuted, phase, lastResult, history,
-    setBetAmount, setAutoEnabled, setAutoValue, toggleMute, startRunning, settle, resetToIdle,
+    betAmount, autoEnabled, autoValue, phase, lastResult, history,
+    setBetAmount, setAutoEnabled, setAutoValue, startRunning, settle, resetToIdle,
   } = useCrashStore();
-  const { playWin, playLoss } = useGameSounds(isMuted);
+  const { muted, toggleMute } = useAudioStore();
   const balance = useBalanceStore((s) => s.balance);
   const [error, setError] = useState<string | null>(null);
   const [mult, setMult] = useState(1.0);
 
   const anchorRef = useRef<{ elapsedMs: number; perf: number }>({ elapsedMs: 0, perf: 0 });
   const rafRef = useRef<number | null>(null);
+  const toneRef = useRef<SoundHandle | null>(null);
+  const boardRef = useRef<HTMLDivElement>(null);
+  const multRef = useRef<HTMLDivElement>(null);
 
   function stopLoop() {
     if (rafRef.current != null) {
       cancelAnimationFrame(rafRef.current);
       rafRef.current = null;
     }
+  }
+
+  function stopTone(fadeMs = 80) {
+    toneRef.current?.stop(fadeMs);
+    toneRef.current = null;
+  }
+
+  // Win flourish: green flash + multiplier pop + tiered confetti/shake (own ka-ching).
+  function winFx(multiplier: number, profit: number) {
+    stopTone(120);
+    sound.cashout(multiplier);
+    flash('#21D07A', 0.18);
+    if (!prefersReducedMotion() && multRef.current) {
+      gsap.fromTo(multRef.current, { scale: 1.3 }, { scale: 1, duration: 0.7, ease: 'elastic.out(1, 0.4)' });
+    }
+    celebrate(winTier(profit, betAmount), { shakeEl: boardRef.current, originEl: boardRef.current, silent: true });
+  }
+
+  // Bust: cut the tone, slam the explosion — shake + red flash.
+  function bustFx() {
+    stopTone(40);
+    sound.bust();
+    flash('#F0445A', 0.22);
+    screenShake(boardRef.current, 12, 0.5);
   }
 
   function tick() {
@@ -90,6 +138,8 @@ export function CrashPage() {
     // confirmation, so the curve never overshoots a target that's about to fire.
     if (st.autoEnabled && m >= st.autoValue) m = st.autoValue;
     setMult(m);
+    // Rising tension: pitch the tone up with the multiplier.
+    toneRef.current?.setRate?.(Math.min(8, 1 + (m - 1) * 0.5));
     rafRef.current = requestAnimationFrame(tick);
   }
 
@@ -98,6 +148,8 @@ export function CrashPage() {
     setMult(crashMultiplierAt(anchorRef.current.elapsedMs));
     startRunning(sessionId);
     stopLoop();
+    stopTone(0);
+    toneRef.current = sound.crashTone();
     rafRef.current = requestAnimationFrame(tick);
   }
 
@@ -114,7 +166,10 @@ export function CrashPage() {
       .catch(() => {
         /* no active round */
       });
-    return () => stopLoop();
+    return () => {
+      stopLoop();
+      stopTone(0);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -126,7 +181,7 @@ export function CrashPage() {
       stopLoop();
       setMult(crashPoint);
       settle({ win: false, multiplier: crashPoint, payout: 0, profit: -st.betAmount, auto: false });
-      playLoss();
+      bustFx();
     }
     function onCashout({
       sessionId, multiplier, payout, newBalance, auto,
@@ -137,7 +192,7 @@ export function CrashPage() {
       setMult(multiplier);
       if (typeof newBalance === 'number') useBalanceStore.getState().setBalance(newBalance);
       settle({ win: true, multiplier, payout, profit: payout - st.betAmount, auto: !!auto });
-      playWin();
+      winFx(multiplier, payout - st.betAmount);
     }
     socket.on('crash:bust', onBust);
     socket.on('crash:cashout', onCashout);
@@ -146,11 +201,13 @@ export function CrashPage() {
       socket.off('crash:cashout', onCashout);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [playWin, playLoss]);
+  }, []);
 
   async function handleStart() {
     const st = useCrashStore.getState();
     if (st.phase === 'running') return;
+    sound.unlock();
+    sound.bet();
     setError(null);
     resetToIdle();
     localStorage.setItem('lastBet_crash', String(st.betAmount));
@@ -186,12 +243,12 @@ export function CrashPage() {
         setMult(m);
         if (typeof d.newBalance === 'number') useBalanceStore.getState().setBalance(d.newBalance);
         settle({ win: true, multiplier: m, payout: d.payout ?? 0, profit: (d.payout ?? 0) - st.betAmount, auto: false });
-        playWin();
+        winFx(m, (d.payout ?? 0) - st.betAmount);
       } else {
         const cp = d.crashPoint ?? mult;
         setMult(cp);
         settle({ win: false, multiplier: cp, payout: 0, profit: -st.betAmount, auto: false });
-        playLoss();
+        bustFx();
       }
     } catch (err: unknown) {
       const ax = err as { response?: { data?: { error?: string }; status?: number } };
@@ -231,8 +288,8 @@ export function CrashPage() {
         <h1 className="h-title">Crash</h1>
         <div className="game-meta-spec">
           <span>RISE &amp; CASH OUT</span><span className="dot">·</span><span>97% RTP</span>
-          <button className="icon-btn" onClick={toggleMute} title={isMuted ? 'Unmute' : 'Mute'} style={{ fontSize: 14 }}>
-            {isMuted ? '🔇' : '🔊'}
+          <button className="icon-btn" onClick={toggleMute} title={muted ? 'Unmute' : 'Mute'} style={{ fontSize: 14 }}>
+            {muted ? '🔇' : '🔊'}
           </button>
         </div>
       </div>
@@ -242,10 +299,10 @@ export function CrashPage() {
       <div className="game-layout">
         <div className="game-stage">
           <div className="crash-stage">
-            <div className={`crash-board ${phase}`}>
+            <div className={`crash-board ${phase}`} ref={boardRef}>
               <CrashCurve mult={mult} color={curveColor} />
               <div className="crash-readout">
-                <div className="crash-mult" style={{ color: multColor }}>{mult.toFixed(2)}×</div>
+                <div className="crash-mult" ref={multRef} style={{ color: multColor }}>{mult.toFixed(2)}×</div>
                 {caption && <div className="crash-caption" style={{ color: curveColor }}>{caption}</div>}
               </div>
             </div>

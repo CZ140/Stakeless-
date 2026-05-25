@@ -2100,6 +2100,9 @@ body::before {
 .crash-board.busted { background: radial-gradient(120% 120% at 50% 100%, rgba(240,68,90,0.08), transparent 60%), var(--bg-inset); }
 .crash-board.cashed { background: radial-gradient(120% 120% at 50% 100%, rgba(33,208,122,0.10), transparent 60%), var(--bg-inset); }
 .crash-curve { position: absolute; inset: 0; width: 100%; height: 100%; }
+.crash-head-halo { animation: crash-head-pulse 1.1s ease-in-out infinite; }
+@keyframes crash-head-pulse { 0%, 100% { opacity: 0.32; } 50% { opacity: 0.1; } }
+@media (prefers-reduced-motion: reduce) { .crash-head-halo { animation: none; } }
 .crash-readout {
   position: absolute; inset: 0; display: flex; flex-direction: column;
   align-items: center; justify-content: center; gap: 8px; pointer-events: none;

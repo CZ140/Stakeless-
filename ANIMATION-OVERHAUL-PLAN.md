@@ -147,5 +147,5 @@ GSAP plugins (MotionPath, CustomEase, CustomBounce) ship inside the installed `g
 - [x] **Game 1: Slots** — `SlotReel` windowed strips, staggered GSAP stops, near-miss suspense, count-up, tiered confetti. Verified in browser.
 - [x] **Game 2: Roulette** — real ball: fast orbit → independent decel (keeps moving after wheel slows) → bounce drop into pocket, rattle ticks + whir + drop audio, tiered celebrate. Motion verified via transform trace.
 - [x] **Game 3: Dice** — marker glides to the roll with back.out overshoot, number counts up, fade-in, pulse + tiered celebrate on win, roll/tick/stinger audio. Verified via trace.
-- [ ] **Game 4: Crash**
+- [x] **Game 4: Crash** — glowing/pulsing curve head (SVG glow filter), rising tension tone pitched to the multiplier, cash-out (green flash + elastic mult pop + ka-ching + celebrate) vs bust (screen shake + red flash + boom). Resume still works. Verified live (rise → cash-out).
 - [ ] **Game 5: Blackjack**
