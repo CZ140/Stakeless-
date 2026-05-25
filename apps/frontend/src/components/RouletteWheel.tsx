@@ -3,34 +3,18 @@ import gsap from 'gsap';
 import { useGSAP } from '@gsap/react';
 import { sound, type SoundHandle } from '../lib/sound';
 import { prefersReducedMotion } from '../hooks/useReducedMotion';
+import { WheelFaceSvg, WheelShineSvg } from './vault/WheelGraphic';
 
 gsap.registerPlugin(useGSAP);
 
 const WHEEL_SEQUENCE = [0,32,15,19,4,21,2,25,17,34,6,27,13,36,11,30,8,23,10,5,24,16,33,1,20,14,31,9,22,18,29,7,28,12,35,3,26];
 const POCKET_ANGLE = 360 / 37;
-const RED_NUMBERS = new Set([1,3,5,7,9,12,14,16,18,19,21,23,25,27,30,32,34,36]);
 
-// Ball orbit radii (px from wheel centre). The ball rides the outer track while
-// spinning, then drops inward and settles into the pocket ring.
-const BALL_RIM_RADIUS = 180;
+// Ball orbit radii (px from wheel centre, 400px wheel). The ball rides the outer
+// track (just inside the gold rim) while spinning, then drops into the pocket ring.
+const BALL_RIM_RADIUS = 190;
 const BALL_REST_RADIUS = 150;
 const SPIN_DURATION = 6;
-
-function getPocketColor(pocket: number): string {
-  if (pocket === 0) return '#00E082';
-  return RED_NUMBERS.has(pocket) ? '#C8364B' : '#0a0f15';
-}
-
-// Build conic-gradient string from wheel sequence
-function buildConicGradient(): string {
-  const stops = WHEEL_SEQUENCE.map((pocket, i) => {
-    const start = i * POCKET_ANGLE;
-    const end = (i + 1) * POCKET_ANGLE;
-    const color = getPocketColor(pocket);
-    return `${color} ${start.toFixed(2)}deg ${end.toFixed(2)}deg`;
-  });
-  return `conic-gradient(from 0deg, ${stops.join(', ')})`;
-}
 
 interface RouletteWheelProps {
   winningPocket: number | null;
@@ -127,54 +111,23 @@ export function RouletteWheel({ winningPocket, onSettled }: RouletteWheelProps) 
         filter: 'drop-shadow(0 4px 8px rgba(0,0,0,0.5))',
         zIndex: 10,
       }} />
-      {/* Wheel */}
-      <div ref={containerRef} style={{
-        width: '400px', height: '400px',
-        borderRadius: '50%',
-        background: buildConicGradient(),
-        position: 'relative',
-        border: '4px solid #B58E3D',
-        boxShadow: 'inset 0 0 0 12px #161B23, inset 0 0 60px rgba(0,0,0,0.5), 0 30px 80px rgba(0,0,0,0.6)',
-      }}>
-        {/* Number labels */}
-        {WHEEL_SEQUENCE.map((pocket, i) => {
-          const angle = i * POCKET_ANGLE + POCKET_ANGLE / 2; // center of sector
-          return (
-            <div
-              key={pocket}
-              style={{
-                position: 'absolute',
-                top: '50%',
-                left: '50%',
-                width: '24px',
-                height: '24px',
-                marginTop: '-12px',
-                marginLeft: '-12px',
-                transform: `rotate(${angle}deg) translateY(-170px)`,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: '0.65rem',
-                fontWeight: 700,
-                color: '#ffffff',
-                textShadow: '0 1px 2px rgba(0,0,0,0.8)',
-              }}
-            >
-              <span style={{ transform: `rotate(${-angle}deg)` }}>{pocket}</span>
-            </div>
-          );
-        })}
-        {/* Center hub */}
-        <div style={{
-          position: 'absolute', top: '50%', left: '50%',
-          transform: 'translate(-50%, -50%)',
-          width: '84px', height: '84px',
-          borderRadius: '50%',
-          background: 'linear-gradient(135deg, #2a3340, #0a0f15)',
-          border: '2px solid #B58E3D',
-          boxShadow: 'inset 0 2px 4px rgba(255,255,255,0.05), inset 0 -2px 4px rgba(0,0,0,0.4)',
-        }} />
+      {/* Rotating wheel face — shared SVG artwork (same as the auth wheel). */}
+      <div
+        ref={containerRef}
+        style={{
+          position: 'absolute',
+          inset: 0,
+          transformOrigin: '50% 50%',
+          filter: 'drop-shadow(0 24px 40px rgba(0,0,0,0.55))',
+        }}
+      >
+        <WheelFaceSvg style={{ width: '100%', height: '100%', display: 'block' }} />
       </div>
+
+      {/* Fixed light/shadow overlay (does not rotate) for a 3D feel. */}
+      <WheelShineSvg
+        style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: 2 }}
+      />
 
       {/* Ball orbit arm — sits above the wheel, rotates independently to orbit the ball.
           The ball rests at the top (12 o'clock) where the winning pocket settles. */}
