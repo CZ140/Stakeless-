@@ -31,6 +31,25 @@ interface ActiveResponse {
   session: null | { sessionId: number; startedAt: number; autoCashout: number | null; serverNow: number };
 }
 
+// Build a smooth path through points via a Catmull-Rom spline converted to cubic
+// béziers, so the curve reads as one fluid line instead of faceted segments.
+function smoothPath(pts: [number, number][]): string {
+  if (pts.length < 2) return pts.length ? `M${pts[0]![0]} ${pts[0]![1]}` : '';
+  let d = `M${pts[0]![0].toFixed(2)} ${pts[0]![1].toFixed(2)}`;
+  for (let i = 0; i < pts.length - 1; i++) {
+    const p0 = pts[i - 1] ?? pts[i]!;
+    const p1 = pts[i]!;
+    const p2 = pts[i + 1]!;
+    const p3 = pts[i + 2] ?? p2;
+    const cp1x = p1[0] + (p2[0] - p0[0]) / 6;
+    const cp1y = p1[1] + (p2[1] - p0[1]) / 6;
+    const cp2x = p2[0] - (p3[0] - p1[0]) / 6;
+    const cp2y = p2[1] - (p3[1] - p1[1]) / 6;
+    d += ` C${cp1x.toFixed(2)} ${cp1y.toFixed(2)} ${cp2x.toFixed(2)} ${cp2y.toFixed(2)} ${p2[0].toFixed(2)} ${p2[1].toFixed(2)}`;
+  }
+  return d;
+}
+
 // Curve chart in a 0–100 viewBox. Sampled from the shared multiplier curve so the
 // shape matches the server's settlement exactly. x spans a rolling ≥5s window, y
 // auto-zooms to keep the head in frame (camera follow); both freeze on settle.
@@ -48,7 +67,7 @@ function CrashCurve({ mult, color }: { mult: number; color: string }) {
     pts.push([x, y]);
   }
   const head = pts[pts.length - 1]!;
-  const line = pts.map(([x, y], i) => `${i === 0 ? 'M' : 'L'}${x.toFixed(2)} ${y.toFixed(2)}`).join(' ');
+  const line = smoothPath(pts);
   const area = `${line} L${head[0].toFixed(2)} 100 L0 100 Z`;
   return (
     <svg className="crash-curve" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden>

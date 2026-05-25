@@ -2027,16 +2027,19 @@ body::before {
 /* --slot-cell / --slot-gap MUST match CELL/GAP in SlotReel.tsx so the strip lands aligned. */
 .slots-grid {
   --slot-cell: 84px; --slot-gap: 8px;
-  display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--slot-gap);
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;
   width: 100%; max-width: 420px; padding: 14px;
   background: linear-gradient(180deg, rgba(212,168,87,0.10), transparent 70%);
   border: 1px solid var(--border-strong); border-radius: var(--r-lg);
   box-shadow: inset 0 1px 0 rgba(255,255,255,0.04), 0 10px 30px rgba(0,0,0,0.35);
 }
-/* Each reel is a clipped window onto a tall, GSAP-translated strip of cells. */
+/* Each reel is one continuous column: a clipped window (the column panel) over a
+   tall, GSAP-translated strip. Symbols sit IN the column — no per-cell boxes. */
 .slots-reel-window {
   height: calc(3 * var(--slot-cell) + 2 * var(--slot-gap));
   overflow: hidden; position: relative; border-radius: var(--r-md);
+  background: var(--bg-inset); border: 1px solid var(--border);
+  box-shadow: var(--inset-shadow);
 }
 .slots-strip {
   display: flex; flex-direction: column; gap: var(--slot-gap);
@@ -2045,22 +2048,20 @@ body::before {
 .slots-cell {
   height: var(--slot-cell); flex: 0 0 var(--slot-cell);
   display: grid; place-items: center;
-  background: var(--bg-inset); border: 1px solid var(--border);
-  border-radius: var(--r-md); font-size: 40px; line-height: 1;
-  box-shadow: var(--inset-shadow); user-select: none;
-  transition: box-shadow 0.2s, border-color 0.2s, background 0.2s;
+  font-size: 40px; line-height: 1; user-select: none;
+  transition: box-shadow 0.2s, background 0.2s;
 }
 /* Motion blur while the strip is travelling. */
 .slots-strip.is-spinning .slots-cell { filter: blur(3px); opacity: 0.85; }
+/* A winning symbol glows within the column rather than sitting in its own box. */
 .slots-cell.win {
-  border-color: var(--accent);
-  background: var(--accent-soft);
-  box-shadow: 0 0 0 1px var(--accent), 0 0 18px var(--accent-glow);
+  background: var(--accent-soft); border-radius: var(--r-sm);
+  box-shadow: inset 0 0 0 1px var(--accent), 0 0 18px var(--accent-glow);
   animation: slots-pulse 1s ease-in-out infinite;
 }
 @keyframes slots-pulse {
-  0%, 100% { box-shadow: 0 0 0 1px var(--accent), 0 0 12px var(--accent-glow); }
-  50% { box-shadow: 0 0 0 1px var(--accent), 0 0 24px var(--accent-glow); }
+  0%, 100% { box-shadow: inset 0 0 0 1px var(--accent), 0 0 12px var(--accent-glow); }
+  50% { box-shadow: inset 0 0 0 1px var(--accent), 0 0 26px var(--accent-glow); }
 }
 @media (prefers-reduced-motion: reduce) {
   .slots-strip.is-spinning .slots-cell { filter: none; opacity: 1; }
