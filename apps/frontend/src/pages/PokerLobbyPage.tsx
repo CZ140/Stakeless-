@@ -11,7 +11,6 @@ function CreateTableForm({ onClose, onCreated }: { onClose: () => void; onCreate
   const [name, setName] = useState('');
   const [stake, setStake] = useState<PokerStakeId>('micro');
   const [type, setType] = useState<'public' | 'private'>('public');
-  const [bots, setBots] = useState(3);
   const [saving, setSaving] = useState(false);
 
   async function create() {
@@ -23,7 +22,6 @@ function CreateTableForm({ onClose, onCreated }: { onClose: () => void; onCreate
         type,
         smallBlind: blinds.smallBlind,
         bigBlind: blinds.bigBlind,
-        botTarget: bots,
       });
       toast.success('Table created');
       onCreated(res.data.id);
@@ -63,17 +61,9 @@ function CreateTableForm({ onClose, onCreated }: { onClose: () => void; onCreate
             <button className={'pkr-stake' + (type === 'private' ? ' active' : '')} onClick={() => setType('private')}>Private<span>invite</span></button>
           </div>
         </div>
-        <div>
-          <label className="label">Bots <span className="fg-dim">· fill empty seats</span></label>
-          <div className="pkr-stake-row">
-            {[0, 1, 2, 3, 4, 5].map((n) => (
-              <button key={n} className={'pkr-bot-pick' + (bots === n ? ' active' : '')} onClick={() => setBots(n)}>{n}</button>
-            ))}
-          </div>
-        </div>
       </div>
       <div className="fg-create-foot">
-        <span className="fg-mono fg-dim">6-max · buy-in 40–100× the big blind · you'll be set as host</span>
+        <span className="fg-mono fg-dim">6-max · buy-in 40–100× the big blind · sit down, then tap empty seats to add bots</span>
         <div style={{ display: 'flex', gap: 8 }}>
           <button className="btn btn-ghost" onClick={onClose}>Cancel</button>
           <button className="btn btn-primary" disabled={saving} onClick={create}>Create table</button>

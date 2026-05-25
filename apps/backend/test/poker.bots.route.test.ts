@@ -1,22 +1,25 @@
-// Integration: a human at a bot-filled table, driven through the table manager
-// directly (no sockets/timers — bots are advanced synchronously via runBotAction).
+// Integration: bots are optional and added on demand by a seated player. Driven
+// through the table manager directly (no sockets/timers — bots advance via
+// runBotAction synchronously).
 import { describe, it, expect, beforeEach } from 'vitest';
 import { tableManager } from '../src/services/poker/manager.js';
 import { resetDb, createUser } from './helpers.js';
 
-async function setupTable(botTarget = 2) {
+// Create a table, seat the human at 0, and add bots at the given seats.
+async function seatWithBots(botSeats: number[]) {
   const a = await createUser({ balance: 1000 });
   const id = await tableManager.createTable(a.user.id, {
     name: 'Bot Table',
     type: 'public',
     smallBlind: 5,
     bigBlind: 10,
-    botTarget,
   });
+  await tableManager.sit(a.user.id, id, 0, 1000);
+  for (const s of botSeats) await tableManager.addBot(a.user.id, id, s);
   return { a, id };
 }
 
-// Drive the current hand to completion: bots act via runBotAction, the human
+// Drive the current hand to completion: bots act via runBotAction; the human
 // plays passively (check/call) unless told to fold first.
 async function driveHand(id: number, humanId: number, humanFolds = false): Promise<void> {
   let foldedOnce = false;
@@ -39,55 +42,67 @@ async function driveHand(id: number, humanId: number, humanFolds = false): Promi
   throw new Error('driveHand did not terminate');
 }
 
-describe('Poker — bots', () => {
+describe('Poker — optional bots', () => {
   beforeEach(async () => {
     await resetDb();
     tableManager._resetAll();
   });
 
-  it('fills empty seats with bots and starts a hand when a human sits', async () => {
-    const { a, id } = await setupTable(2);
+  it('does NOT auto-fill bots when a human sits (table waits)', async () => {
+    const a = await createUser({ balance: 1000 });
+    const id = await tableManager.createTable(a.user.id, { name: 'T', type: 'public', smallBlind: 5, bigBlind: 10 });
     await tableManager.sit(a.user.id, id, 0, 1000);
+    const { table } = await tableManager.getView(a.user.id, id);
+    expect(table.seats.filter((s) => s.userId !== null)).toHaveLength(1); // just the human
+    expect(table.street).toBe('idle'); // no opponents → no hand
+  });
+
+  it('adds a bot on demand and starts a hand', async () => {
+    const { a, id } = await seatWithBots([1]);
     const { table } = await tableManager.getView(a.user.id, id);
     expect(table.street).toBe('preflop');
     const occupied = table.seats.filter((s) => s.userId !== null);
-    expect(occupied).toHaveLength(3); // 1 human + 2 bots
-    expect(occupied.filter((s) => s.isBot)).toHaveLength(2);
-    expect(table.actingSeat).toBe(0); // human (UTG) acts first 3-handed
+    expect(occupied).toHaveLength(2);
+    expect(occupied.filter((s) => s.isBot)).toHaveLength(1);
   });
 
-  it('plays a full hand to a result with bots acting', async () => {
-    const { a, id } = await setupTable(2);
-    await tableManager.sit(a.user.id, id, 0, 1000);
-    await driveHand(id, a.user.id, true); // human folds; bots finish heads-up
+  it('refuses to add a bot unless you are seated at the table', async () => {
+    const a = await createUser({ balance: 1000 });
+    const b = await createUser({ balance: 1000 });
+    const id = await tableManager.createTable(a.user.id, { name: 'T', type: 'public', smallBlind: 5, bigBlind: 10 });
+    await expect(tableManager.addBot(b.user.id, id, 0)).rejects.toMatchObject({ code: 'NOT_SEATED' });
+  });
+
+  it('plays a hand to a result with the bot acting (passive showdown)', async () => {
+    const { a, id } = await seatWithBots([1]);
+    await driveHand(id, a.user.id, false); // human checks/calls; bot acts each street
     const eng = tableManager._engine(id)!;
     expect(eng.isHandInProgress()).toBe(false);
     expect(eng.lastResult).toBeTruthy();
     expect(eng.lastResult!.winners.length).toBeGreaterThanOrEqual(1);
-    // Table chips are conserved across the hand (1000 human + 2×1000 bots).
-    const total = eng.occupiedSeats().reduce((sum, s) => sum + s.stack, 0);
-    expect(total).toBe(3000);
   });
 
-  it('auto-acts for a human who runs out of time (timeout folds/checks)', async () => {
-    const { a, id } = await setupTable(2);
-    await tableManager.sit(a.user.id, id, 0, 1000);
+  it('auto-acts for a human who runs out of time', async () => {
+    const { a, id } = await seatWithBots([1]);
     const eng = tableManager._engine(id)!;
-    expect(eng.actingIndex).toBe(0); // the human
+    expect(eng.actingIndex).toBe(0); // human (heads-up SB) acts first
     await tableManager.timeoutCurrentActor(id);
-    // The human folded (facing the BB they cannot check), so action moved off seat 0.
-    expect(eng.actingIndex).not.toBe(0);
     const human = eng.occupiedSeats().find((s) => s.seatIndex === 0)!;
-    expect(human.status).toBe('folded');
+    expect(human.status).toBe('folded'); // facing the BB, the timeout folds
   });
 
-  it('deals the next hand on demand once a human is present', async () => {
-    const { a, id } = await setupTable(2);
-    await tableManager.sit(a.user.id, id, 0, 1000);
-    await driveHand(id, a.user.id, true);
+  it('removes a bot mid-hand and ends the hand if it was heads-up', async () => {
+    const { a, id } = await seatWithBots([1]);
+    await tableManager.removeBot(a.user.id, id, 1);
+    const { table } = await tableManager.getView(a.user.id, id);
+    expect(table.seats.filter((s) => s.userId !== null)).toHaveLength(1); // bot gone
     expect(tableManager._engine(id)!.isHandInProgress()).toBe(false);
-    const started = await tableManager.startNextHandIfReady(id);
-    expect(started).toBe(true);
+  });
+
+  it('deals the next hand on demand', async () => {
+    const { a, id } = await seatWithBots([1]);
+    await driveHand(id, a.user.id, false);
+    expect(await tableManager.startNextHandIfReady(id)).toBe(true);
     expect(tableManager._engine(id)!.isHandInProgress()).toBe(true);
   });
 });

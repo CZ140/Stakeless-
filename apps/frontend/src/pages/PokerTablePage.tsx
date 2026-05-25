@@ -123,6 +123,25 @@ export function PokerTablePage() {
     }
   }
 
+  async function addBot(seatIndex: number) {
+    sound.chip();
+    try {
+      await apiClient.post(`/poker/tables/${tableId}/bots`, { seatIndex });
+    } catch (e) {
+      const ax = e as { response?: { data?: { error?: string } } };
+      toast.error(ax.response?.data?.error ?? 'Could not add bot');
+    }
+  }
+
+  async function removeBot(seatIndex: number) {
+    try {
+      await apiClient.delete(`/poker/tables/${tableId}/bots/${seatIndex}`);
+    } catch (e) {
+      const ax = e as { response?: { data?: { error?: string } } };
+      toast.error(ax.response?.data?.error ?? 'Could not remove bot');
+    }
+  }
+
   const secsLeft = table.actionDeadline ? Math.max(0, Math.ceil((table.actionDeadline - now) / 1000)) : null;
 
   return (
@@ -155,7 +174,20 @@ export function PokerTablePage() {
         {/* Seats */}
         {SEAT_POS.map((pos, i) => {
           const seat = table.seats[i];
-          return <Seat key={i} pos={pos} seat={seat} table={table} now={now} mine={seat?.username === username} onSit={() => seat && seat.userId === null && setBuyInSeat(i)} />;
+          return (
+            <Seat
+              key={i}
+              pos={pos}
+              seat={seat}
+              table={table}
+              now={now}
+              mine={seat?.username === username}
+              iAmSeated={iAmSeated}
+              onSit={() => setBuyInSeat(i)}
+              onAddBot={() => addBot(i)}
+              onRemoveBot={() => removeBot(i)}
+            />
+          );
         })}
       </div>
 
@@ -187,18 +219,25 @@ export function PokerTablePage() {
 }
 
 function Seat({
-  pos, seat, table, now, mine, onSit,
+  pos, seat, table, now, mine, iAmSeated, onSit, onAddBot, onRemoveBot,
 }: {
   pos: { left: string; top: string };
   seat: PublicSeat | undefined;
   table: PublicTableState;
   now: number;
   mine: boolean;
+  iAmSeated: boolean;
   onSit: () => void;
+  onAddBot: () => void;
+  onRemoveBot: () => void;
 }) {
   if (!seat || seat.userId === null) {
+    // Empty seat: sit yourself, and (once you're seated) add a bot here.
     return (
-      <button className="pkr-seat empty" style={pos} onClick={onSit}>+ sit</button>
+      <div className="pkr-seat empty" style={pos}>
+        <button className="pkr-seat-add" onClick={onSit}>＋ Sit</button>
+        {iAmSeated && <button className="pkr-seat-add bot" onClick={onAddBot}>＋ Bot</button>}
+      </div>
     );
   }
   const isActing = table.actingSeat === seat.seatIndex;
@@ -207,6 +246,9 @@ function Seat({
   const secs = isActing && table.actionDeadline ? Math.max(0, Math.ceil((table.actionDeadline - now) / 1000)) : null;
   return (
     <div className={'pkr-seat' + (isActing ? ' acting' : '') + (folded ? ' folded' : '') + (mine ? ' mine' : '')} style={pos}>
+      {seat.isBot && iAmSeated && (
+        <button className="pkr-seat-remove" title="Remove bot" onClick={onRemoveBot}>×</button>
+      )}
       <div className="pkr-seat-cards">
         {seat.revealedCards
           ? seat.revealedCards.map((c, i) => <PlayingCard key={i} card={c} />)

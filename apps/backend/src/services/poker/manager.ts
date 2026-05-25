@@ -279,27 +279,47 @@ class TableManager {
     return eng.occupiedSeats().some((s) => !s.isBot);
   }
 
-  // Fill empty seats with bots up to the table's botTarget (only while a human is
-  // present). Bots have a synthetic negative userId and a house-funded stack.
-  private fillBots(tableId: number, eng: PokerTable): void {
+  // Pick a bot display name not already in use at the table.
+  private pickBotName(eng: PokerTable): string {
+    const used = new Set(eng.occupiedSeats().filter((s) => s.isBot).map((s) => s.username));
+    const free = BOT_NAMES.find((n) => !used.has(`Bot ${n}`));
+    return free ? `Bot ${free}` : `Bot ${eng.occupiedSeats().length + 1}`;
+  }
+
+  // Add a bot to a specific empty seat. Bots are OPTIONAL and added on demand by a
+  // seated player (click an empty seat → "+ Bot"); they have a synthetic negative
+  // userId and a house-funded stack and are never persisted. Adding the player
+  // that brings the table to two may kick off the first hand.
+  async addBot(userId: number, tableId: number, seatIndex: number): Promise<void> {
+    const eng = await this.loadEngine(tableId);
+    if (!eng.seatOfUser(userId)) throw err('NOT_SEATED', 'Sit down before adding bots');
+    if (seatIndex < 0 || seatIndex >= eng.config.maxSeats) throw err('BAD_SEAT', 'Invalid seat');
+    if (eng.occupiedSeats().some((s) => s.seatIndex === seatIndex)) throw err('SEAT_TAKEN', 'That seat is taken');
     const m = this.meta.get(tableId);
-    if (!m || m.botTarget <= 0 || !this.hasHuman(eng)) return;
-    const taken = new Set(eng.occupiedSeats().map((s) => s.seatIndex));
-    const usedNames = new Set(eng.occupiedSeats().filter((s) => s.isBot).map((s) => s.username));
-    let bots = eng.occupiedSeats().filter((s) => s.isBot).length;
-    for (let seatIdx = 0; seatIdx < eng.config.maxSeats && bots < m.botTarget; seatIdx++) {
-      if (taken.has(seatIdx)) continue;
-      const name = BOT_NAMES.find((n) => !usedNames.has(`Bot ${n}`)) ?? `Bot ${bots + 1}`;
-      const username = name.startsWith('Bot ') ? name : `Bot ${name}`;
-      usedNames.add(username);
-      eng.seatPlayer(seatIdx, { userId: -(seatIdx + 1), username, avatarColor: null, isBot: true, stack: m.maxBuyIn });
-      taken.add(seatIdx);
-      bots++;
+    const stack = m?.maxBuyIn ?? eng.config.bigBlind * 100;
+    eng.seatPlayer(seatIndex, { userId: -(seatIndex + 1), username: this.pickBotName(eng), avatarColor: null, isBot: true, stack });
+    this.maybeStartHand(tableId, eng);
+    this.hooks.onStateChange?.(tableId);
+  }
+
+  // Remove a bot from a seat. Mid-hand the bot folds and is removed at hand end;
+  // otherwise it leaves immediately. Only a seated player may manage bots.
+  async removeBot(userId: number, tableId: number, seatIndex: number): Promise<void> {
+    const eng = await this.loadEngine(tableId);
+    if (!eng.seatOfUser(userId)) throw err('NOT_SEATED', 'You are not at this table');
+    const seat = eng.occupiedSeats().find((s) => s.seatIndex === seatIndex);
+    if (!seat || !seat.isBot) throw err('NOT_A_BOT', 'That seat is not a bot');
+    if (eng.isHandInProgress() && seat.inHand && seat.status !== 'folded') {
+      eng.forceFold(seatIndex); // flagged leaving; removed at settle
+      if (!eng.isHandInProgress()) await this.settle(tableId, eng);
+      else this.hooks.onStateChange?.(tableId);
+    } else {
+      eng.removeSeat(seatIndex);
+      this.hooks.onStateChange?.(tableId);
     }
   }
 
   private maybeStartHand(tableId: number, eng: PokerTable): void {
-    this.fillBots(tableId, eng);
     if (eng.canStartHand() && this.hasHuman(eng)) {
       eng.startHand();
       this.hooks.onActorChanged?.(tableId);
@@ -310,7 +330,6 @@ class TableManager {
   // Called by P4 (after a short delay) or directly by tests to deal the next hand.
   async startNextHandIfReady(tableId: number): Promise<boolean> {
     const eng = await this.loadEngine(tableId);
-    this.fillBots(tableId, eng);
     if (!eng.canStartHand() || !this.hasHuman(eng)) return false;
     eng.startHand();
     this.hooks.onActorChanged?.(tableId);
@@ -328,12 +347,16 @@ class TableManager {
         db.update(pokerSeats).set({ stack: s.stack }).where(and(eq(pokerSeats.tableId, tableId), eq(pokerSeats.userId, s.userId))),
       ),
     );
-    // Cash out + remove anyone who asked to leave.
+    // Cash out + remove any human who asked to leave.
     for (const s of humans.filter((x) => x.leaving)) {
       await this.cashOut(s.userId, tableId, s.stack);
       eng.removeSeat(s.seatIndex);
     }
-    // House-fund any busted bot back to a full buy-in so it keeps playing.
+    // Remove any bot that was taken off the table mid-hand (no cash-out — house chips).
+    for (const s of eng.occupiedSeats().filter((x) => x.isBot && x.leaving)) {
+      eng.removeSeat(s.seatIndex);
+    }
+    // House-fund any remaining busted bot back to a full buy-in so it keeps playing.
     const m = this.meta.get(tableId);
     if (m) {
       for (const s of eng.occupiedSeats().filter((x) => x.isBot && x.stack < m.bigBlind)) {

@@ -27,6 +27,7 @@ function handlePokerError(err: unknown, res: Response): boolean {
     NOT_YOUR_TURN: [409, 'It is not your turn'],
     ILLEGAL_ACTION: [400, 'Illegal action'],
     NO_SEAT: [400, 'No such seat'],
+    NOT_A_BOT: [400, 'That seat is not a bot'],
   };
   if (code && map[code]) {
     const [status, message] = map[code];
@@ -121,6 +122,43 @@ pokerRouter.post('/tables/:id/leave', requireAuth, async (req, res) => {
   } catch (err) {
     if (handlePokerError(err, res)) return;
     console.error('[poker] leave error:', err);
+    res.status(500).json({ error: 'An unexpected error occurred' });
+  }
+});
+
+const botSchema = z.object({ seatIndex: z.number().int().min(0).max(5) });
+
+// POST /api/poker/tables/:id/bots { seatIndex } — add a bot to an empty seat
+pokerRouter.post('/tables/:id/bots', requireAuth, validate(botSchema), async (req, res) => {
+  const id = parseId(req.params.id);
+  if (id === null) {
+    res.status(400).json({ error: 'Invalid table id' });
+    return;
+  }
+  try {
+    await tableManager.addBot(req.user!.id, id, req.body.seatIndex as number);
+    res.json(await tableManager.getView(req.user!.id, id));
+  } catch (err) {
+    if (handlePokerError(err, res)) return;
+    console.error('[poker] add bot error:', err);
+    res.status(500).json({ error: 'An unexpected error occurred' });
+  }
+});
+
+// DELETE /api/poker/tables/:id/bots/:seatIndex — remove a bot
+pokerRouter.delete('/tables/:id/bots/:seatIndex', requireAuth, async (req, res) => {
+  const id = parseId(req.params.id);
+  const seatIndex = Number(req.params.seatIndex);
+  if (id === null || !Number.isInteger(seatIndex)) {
+    res.status(400).json({ error: 'Invalid id' });
+    return;
+  }
+  try {
+    await tableManager.removeBot(req.user!.id, id, seatIndex);
+    res.json(await tableManager.getView(req.user!.id, id));
+  } catch (err) {
+    if (handlePokerError(err, res)) return;
+    console.error('[poker] remove bot error:', err);
     res.status(500).json({ error: 'An unexpected error occurred' });
   }
 });
