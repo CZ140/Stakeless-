@@ -1,19 +1,23 @@
 import { create } from 'zustand';
-import type { PublicTableState, PrivateHand, PokerHandResult, PokerTableSummary, Card } from '@gambling/shared';
+import type { PublicTableState, PrivateHand, PokerHandResult, PokerTableSummary, PokerChatMessage, Card } from '@gambling/shared';
 
 // Poker UI state: the lobby list, the open table's public state, my private hole
-// cards, and the most recent finished-hand result (shown briefly between hands).
+// cards, the most recent finished-hand result (shown briefly between hands), and
+// the table chat backlog.
 interface PokerState {
   lobby: PokerTableSummary[];
   table: PublicTableState | null;
   myHole: Card[] | null; // my two hole cards (from poker:hand, private)
   mySeat: number | null;
   lastResult: PokerHandResult | null;
+  chat: PokerChatMessage[];
 
   setLobby: (lobby: PokerTableSummary[]) => void;
   setTable: (table: PublicTableState | null) => void;
   setHand: (hand: PrivateHand | null) => void;
   setResult: (result: PokerHandResult | null) => void;
+  setChatHistory: (messages: PokerChatMessage[]) => void;
+  addChatMessage: (message: PokerChatMessage) => void;
   reset: () => void;
 }
 
@@ -23,10 +27,14 @@ export const usePokerStore = create<PokerState>()((set) => ({
   myHole: null,
   mySeat: null,
   lastResult: null,
+  chat: [],
 
   setLobby: (lobby) => set({ lobby }),
   setTable: (table) => set({ table }),
   setHand: (hand) => set(hand ? { myHole: hand.holeCards, mySeat: hand.seatIndex } : { myHole: null, mySeat: null }),
   setResult: (lastResult) => set({ lastResult }),
-  reset: () => set({ table: null, myHole: null, mySeat: null, lastResult: null }),
+  setChatHistory: (chat) => set({ chat }),
+  addChatMessage: (message) =>
+    set((s) => ({ chat: [...s.chat, message].slice(-50) })),
+  reset: () => set({ table: null, myHole: null, mySeat: null, lastResult: null, chat: [] }),
 }));

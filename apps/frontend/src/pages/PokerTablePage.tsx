@@ -11,7 +11,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { usePokerStore } from '../stores/pokerStore';
 import { useFriendsStore } from '../stores/friendsStore';
 import { XIcon } from '../components/vault/icons';
-import { legalActions, type PublicTableState, type PrivateHand, type PokerHandResult, type PublicSeat } from '@gambling/shared';
+import { legalActions, POKER_CHAT_MAX_LEN, type PublicTableState, type PrivateHand, type PokerHandResult, type PublicSeat, type PokerChatMessage } from '@gambling/shared';
 
 // Fixed seat anchors around the felt (percent of the table box). Seat 0 sits at
 // the bottom (the usual hero position); the rest fan out clockwise.
@@ -73,16 +73,27 @@ export function PokerTablePage() {
       window.setTimeout(() => usePokerStore.getState().setResult(null), 4500);
     }
 
+    function onChat(d: { tableId: number; message: PokerChatMessage }) {
+      if (d.tableId === tableId) usePokerStore.getState().addChatMessage(d.message);
+    }
+    function onChatHistory(d: { tableId: number; messages: PokerChatMessage[] }) {
+      if (d.tableId === tableId) usePokerStore.getState().setChatHistory(d.messages);
+    }
+
     if (!socket.connected) socket.connect();
     socket.on('poker:state', onState);
     socket.on('poker:hand', onHand);
     socket.on('poker:result', onResult);
+    socket.on('poker:chat', onChat);
+    socket.on('poker:chathistory', onChatHistory);
     socket.emit('poker:subscribe', tableId);
     return () => {
       socket.emit('poker:unsubscribe', tableId);
       socket.off('poker:state', onState);
       socket.off('poker:hand', onHand);
       socket.off('poker:result', onResult);
+      socket.off('poker:chat', onChat);
+      socket.off('poker:chathistory', onChatHistory);
       usePokerStore.getState().reset();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -219,11 +230,64 @@ export function PokerTablePage() {
         </div>
       )}
 
+      <ChatPanel tableId={tableId} username={username} />
+
       {buyInSeat !== null && (
         <BuyInModal table={table} seatIndex={buyInSeat} onClose={() => setBuyInSeat(null)} tableId={tableId} />
       )}
       {inviting && <InviteModal table={table} tableId={tableId} onClose={() => setInviting(false)} />}
     </AppShell>
+  );
+}
+
+// Live table chat over the poker:<id> room. Seated players and railbirds alike can
+// post; the server gates private tables, rate-limits, and assigns each line an id.
+function ChatPanel({ tableId, username }: { tableId: number; username: string | null }) {
+  const chat = usePokerStore((s) => s.chat);
+  const [text, setText] = useState('');
+  const listRef = useRef<HTMLDivElement>(null);
+
+  // Stick to the newest line as messages arrive.
+  useEffect(() => {
+    const el = listRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [chat]);
+
+  function send(e: React.FormEvent) {
+    e.preventDefault();
+    const t = text.trim();
+    if (!t) return;
+    socket.emit('poker:chat', { tableId, text: t.slice(0, POKER_CHAT_MAX_LEN) });
+    setText('');
+  }
+
+  return (
+    <div className="pkr-chat">
+      <div className="pkr-chat-head fg-mono">Table chat</div>
+      <div className="pkr-chat-msgs" ref={listRef}>
+        {chat.length === 0 ? (
+          <div className="pkr-chat-empty fg-dim">No messages yet — say hi 👋</div>
+        ) : (
+          chat.map((m) => (
+            <div className={'pkr-chat-msg' + (m.username === username ? ' mine' : '')} key={m.id}>
+              <Avatar username={m.username} avatarColor={m.avatarColor} className="fg-ava s22" />
+              <span className="pkr-chat-name">{m.username}</span>
+              <span className="pkr-chat-text">{m.text}</span>
+            </div>
+          ))
+        )}
+      </div>
+      <form className="pkr-chat-input" onSubmit={send}>
+        <input
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          maxLength={POKER_CHAT_MAX_LEN}
+          placeholder="Say something…"
+          aria-label="Table chat message"
+        />
+        <button className="btn btn-primary" type="submit" disabled={!text.trim()}>Send</button>
+      </form>
+    </div>
   );
 }
 

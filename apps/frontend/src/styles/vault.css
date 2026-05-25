@@ -2939,8 +2939,36 @@ body::before {
 .pkr-act-timer { color: var(--accent); font-weight: 700; }
 .pkr-buyin-amt { font-size: var(--fs-lg); color: var(--gold); text-align: center; }
 
+/* Table chat */
+.pkr-chat {
+  margin-top: 16px; background: var(--bg-surface); border: 1px solid var(--border);
+  border-radius: var(--r-lg); overflow: hidden; max-width: 520px;
+}
+.pkr-chat-head {
+  padding: 9px 14px; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--text-muted); border-bottom: 1px solid var(--border); background: var(--bg-elevated);
+}
+.pkr-chat-msgs {
+  display: flex; flex-direction: column; gap: 7px; padding: 12px 14px;
+  height: 200px; overflow-y: auto; scroll-behavior: smooth;
+}
+.pkr-chat-empty { font-size: var(--fs-sm); text-align: center; margin: auto 0; }
+.pkr-chat-msg { display: flex; align-items: baseline; gap: 7px; font-size: var(--fs-sm); line-height: 1.4; }
+.pkr-chat-msg .fg-ava { align-self: center; flex: none; }
+.pkr-chat-name { color: var(--text-secondary); font-weight: 700; white-space: nowrap; }
+.pkr-chat-msg.mine .pkr-chat-name { color: var(--accent); }
+.pkr-chat-text { color: var(--text); word-break: break-word; min-width: 0; }
+.pkr-chat-input { display: flex; gap: 8px; padding: 10px 14px; border-top: 1px solid var(--border); }
+.pkr-chat-input input {
+  flex: 1; min-width: 0; padding: 9px 12px; border-radius: var(--r-sm);
+  background: var(--bg-elevated); border: 1px solid var(--border); color: var(--text); font-size: var(--fs-sm);
+}
+.pkr-chat-input input:focus { outline: none; border-color: var(--accent); }
+.pkr-chat-input .btn { padding: 8px 16px; }
+
 @media (max-width: 640px) {
   .pkr-seat { min-width: 88px; }
   .pkr-card { width: 26px; height: 38px; }
   .pkr-card-rank { font-size: 13px; }
+  .pkr-chat { max-width: none; }
 }

@@ -380,6 +380,19 @@ export interface PokerInvite {
   inviter: SocialUser;
 }
 
+// One line of table chat — broadcast to everyone in the poker:<id> room.
+export interface PokerChatMessage {
+  id: number; // server-assigned, monotonic (also the React key)
+  userId: number;
+  username: string;
+  avatarColor: string | null;
+  text: string;
+  ts: number; // epoch ms
+}
+
+// Max characters kept per chat line (server clamps; client mirrors as maxLength).
+export const POKER_CHAT_MAX_LEN = 300;
+
 // Lobby row — one available/joinable table.
 export interface PokerTableSummary {
   id: number;

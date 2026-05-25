@@ -9,13 +9,18 @@ import type {
   PrivateHand,
   PokerHandResult,
   PokerInvite,
+  PokerChatMessage,
 } from '@gambling/shared';
+import { eq } from 'drizzle-orm';
+import { db } from '../db/index.js';
+import { users } from '../db/schema.js';
 import { attachAuthMiddleware } from './authMiddleware.js';
 import { startLeaderboardBroadcast } from './leaderboardBroadcast.js';
 import { startGroupLeaderboardBroadcast } from './groupLeaderboardBroadcast.js';
 import { isGroupMember, computeGroupLeaderboard } from '../services/groupService.js';
 import { attachPokerRealtime } from './poker.js';
 import { tableManager } from '../services/poker/manager.js';
+import { sanitizeChat, allowChat, addChatMessage, chatHistory } from '../services/poker/chat.js';
 
 interface LeaderboardRow {
   id: number;
@@ -64,6 +69,9 @@ interface ServerToClientEvents {
   'poker:result': (data: { tableId: number; result: PokerHandResult }) => void;
   // A friend invited you to a poker table — pushed to your user room.
   'poker:invite': (data: PokerInvite) => void;
+  // Table chat: one new line to the room, plus the recent backlog on subscribe.
+  'poker:chat': (data: { tableId: number; message: PokerChatMessage }) => void;
+  'poker:chathistory': (data: { tableId: number; messages: PokerChatMessage[] }) => void;
 }
 
 interface ClientToServerEvents {
@@ -75,10 +83,15 @@ interface ClientToServerEvents {
   // user room). Anyone who can see the table may subscribe.
   'poker:subscribe': (tableId: number) => void;
   'poker:unsubscribe': (tableId: number) => void;
+  // Send a table-chat line (access-gated + rate-limited server-side).
+  'poker:chat': (data: { tableId: number; text: string }) => void;
 }
 
 interface SocketData {
   userId?: number;
+  // Cached display identity (set lazily on first chat) so we don't re-query per line.
+  username?: string;
+  avatarColor?: string | null;
 }
 
 export let io: Server<ClientToServerEvents, ServerToClientEvents, Record<string, never>, SocketData>;
@@ -141,12 +154,46 @@ export function createSocketServer(server: HttpServer): void {
             if (hand) io.to(socket.id).emit('poker:hand', { tableId, hand });
           }
         }
+        // Send the recent chat backlog so the panel isn't empty on arrival.
+        io.to(socket.id).emit('poker:chathistory', { tableId, messages: chatHistory(tableId) });
       } catch (err) {
         console.error('[socket] poker:subscribe failed:', err);
       }
     });
     socket.on('poker:unsubscribe', (tableId: number) => {
       void socket.leave(`poker:${tableId}`);
+    });
+
+    // Table chat. Authenticated + access-gated (private tables) + rate-limited;
+    // anything that doesn't pass is silently dropped (the client just sees nothing).
+    socket.on('poker:chat', async ({ tableId, text }) => {
+      const uid = socket.data.userId;
+      if (uid === undefined || !Number.isInteger(tableId)) return;
+      const clean = sanitizeChat(text);
+      if (!clean) return;
+      try {
+        if (!(await tableManager.canAccessTable(uid, tableId))) return;
+        if (!allowChat(uid)) return;
+        // Resolve + cache the sender's display identity once per socket.
+        if (socket.data.username === undefined) {
+          const [u] = await db
+            .select({ username: users.username, avatarColor: users.avatarColor })
+            .from(users)
+            .where(eq(users.id, uid));
+          if (!u) return;
+          socket.data.username = u.username;
+          socket.data.avatarColor = u.avatarColor;
+        }
+        const message = addChatMessage(tableId, {
+          userId: uid,
+          username: socket.data.username,
+          avatarColor: socket.data.avatarColor ?? null,
+          text: clean,
+        });
+        io.to(`poker:${tableId}`).emit('poker:chat', { tableId, message });
+      } catch (err) {
+        console.error('[socket] poker:chat failed:', err);
+      }
     });
   });
 
