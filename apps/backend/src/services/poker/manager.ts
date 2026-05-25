@@ -5,10 +5,11 @@
 // startNextHandIfReady() on a delay; nothing here touches sockets directly.
 import { eq, and, inArray, sql } from 'drizzle-orm';
 import { db } from '../../db/index.js';
-import { users, pokerTables, pokerSeats, groupMembers } from '../../db/schema.js';
+import { users, pokerTables, pokerSeats, pokerInvites, groupMembers } from '../../db/schema.js';
 import { PokerTable } from './table.js';
 import { decideBotAction, BOT_NAMES } from './bot.js';
 import { areFriends } from '../friendService.js';
+import { isGroupMember } from '../groupService.js';
 import { POKER } from '@gambling/shared';
 import type { PokerAction, PublicTableState, PrivateHand, PokerTableSummary, PokerInvite } from '@gambling/shared';
 
@@ -82,6 +83,38 @@ class TableManager {
     return eng;
   }
 
+  // ─── Access control (private tables) ────────────────────────────────────────
+  // Public tables are open to everyone. A PRIVATE table may only be sat at / viewed
+  // by its owner, a member of the group it's scoped to, or someone who's been
+  // invited (a persisted poker_invites grant). Lobby visibility (listTables) is
+  // gated by the same rule, so a private table is genuinely private — not merely
+  // hidden from the lobby while remaining joinable by anyone with its id.
+  private async isPrivateMember(userId: number, cfg: typeof pokerTables.$inferSelect): Promise<boolean> {
+    if (cfg.ownerId === userId) return true;
+    if (cfg.groupId != null && (await isGroupMember(userId, cfg.groupId))) return true;
+    const [inv] = await db
+      .select({ id: pokerInvites.id })
+      .from(pokerInvites)
+      .where(and(eq(pokerInvites.tableId, cfg.id), eq(pokerInvites.inviteeId, userId)));
+    return !!inv;
+  }
+
+  // Non-throwing check for the socket spectate path (guest sockets pass undefined).
+  async canAccessTable(userId: number | undefined, tableId: number): Promise<boolean> {
+    const [cfg] = await db.select().from(pokerTables).where(eq(pokerTables.id, tableId));
+    if (!cfg) return false;
+    if (cfg.type !== 'private') return true;
+    if (userId === undefined) return false;
+    return this.isPrivateMember(userId, cfg);
+  }
+
+  // Throwing check for REST reads — distinguishes a missing table from a private one.
+  async assertCanAccess(userId: number, tableId: number): Promise<void> {
+    const [cfg] = await db.select().from(pokerTables).where(eq(pokerTables.id, tableId));
+    if (!cfg) throw err('NOT_FOUND', 'Table not found');
+    if (cfg.type === 'private' && !(await this.isPrivateMember(userId, cfg))) throw err('PRIVATE_TABLE', 'This table is private');
+  }
+
   // ─── Lobby ────────────────────────────────────────────────────────────────
   async createTable(userId: number, input: CreateTableInput): Promise<number> {
     const name = input.name.trim();
@@ -123,6 +156,8 @@ class TableManager {
     const myGroupIds = myGroupRows.map((g) => g.groupId);
     const mySeatRows = await db.select({ tableId: pokerSeats.tableId }).from(pokerSeats).where(eq(pokerSeats.userId, userId));
     const mySeatTableIds = new Set(mySeatRows.map((s) => s.tableId));
+    const myInviteRows = await db.select({ tableId: pokerInvites.tableId }).from(pokerInvites).where(eq(pokerInvites.inviteeId, userId));
+    const myInvitedTableIds = new Set(myInviteRows.map((r) => r.tableId));
 
     const allTables = await db.select().from(pokerTables);
     const seatCounts = await db
@@ -132,7 +167,11 @@ class TableManager {
     const countByTable = new Map(seatCounts.map((c) => [c.tableId, c.n]));
 
     const visible = allTables.filter(
-      (t) => t.type === 'public' || mySeatTableIds.has(t.id) || (t.groupId != null && myGroupIds.includes(t.groupId)),
+      (t) =>
+        t.type === 'public' ||
+        mySeatTableIds.has(t.id) ||
+        myInvitedTableIds.has(t.id) ||
+        (t.groupId != null && myGroupIds.includes(t.groupId)),
     );
     return visible.map((t) => {
       const eng = this.engines.get(t.id);
@@ -155,6 +194,7 @@ class TableManager {
   }
 
   async getView(userId: number, tableId: number): Promise<{ table: PublicTableState; hand: PrivateHand | null }> {
+    await this.assertCanAccess(userId, tableId); // private tables: owner / group / invited only
     const eng = await this.loadEngine(tableId);
     return { table: eng.toPublicState(), hand: eng.privateHandFor(userId) };
   }
@@ -165,6 +205,7 @@ class TableManager {
     if (!cfg) throw err('NOT_FOUND', 'Table not found');
     if (seatIndex < 0 || seatIndex >= cfg.maxSeats) throw err('BAD_SEAT', 'Invalid seat');
     if (buyIn < cfg.minBuyIn || buyIn > cfg.maxBuyIn) throw err('BAD_BUYIN', `Buy-in must be ${cfg.minBuyIn}–${cfg.maxBuyIn}`);
+    if (cfg.type === 'private' && !(await this.isPrivateMember(userId, cfg))) throw err('PRIVATE_TABLE', 'This table is private');
 
     const eng = await this.loadEngine(tableId);
     if (eng.seatOfUser(userId)) throw err('ALREADY_SEATED', 'You are already at this table');
@@ -360,6 +401,9 @@ class TableManager {
     if (invitee.id === inviterId) throw err('CANNOT_INVITE_SELF', 'You cannot invite yourself');
     if (!(await areFriends(inviterId, invitee.id))) throw err('NOT_FRIENDS', 'You can only invite friends');
     if (eng.seatOfUser(invitee.id)) throw err('ALREADY_SEATED', 'They are already at this table');
+    // Persist the access grant so the invitee may actually sit at / view a private
+    // table (and see it in their lobby). Idempotent — re-inviting is a no-op.
+    await db.insert(pokerInvites).values({ tableId, inviterId, inviteeId: invitee.id }).onConflictDoNothing();
     const [inviter] = await db
       .select({ id: users.id, username: users.username, avatarColor: users.avatarColor, avatarImage: users.avatarImage, tierLevel: users.tierLevel })
       .from(users)

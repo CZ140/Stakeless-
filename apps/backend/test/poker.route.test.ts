@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import request from 'supertest';
 import { createApp } from '../src/app.js';
 import { db } from '../src/db/index.js';
-import { friendships } from '../src/db/schema.js';
+import { friendships, groups, groupMembers } from '../src/db/schema.js';
 import { tableManager } from '../src/services/poker/manager.js';
 import { resetDb, createUser, getBalance } from './helpers.js';
 
@@ -14,6 +14,13 @@ function auth(method: 'post' | 'get', path: string, token: string) {
 
 async function makeFriends(a: number, b: number): Promise<void> {
   await db.insert(friendships).values({ requesterId: a, addresseeId: b, status: 'accepted', respondedAt: new Date() });
+}
+
+async function makeGroup(ownerId: number, memberIds: number[] = []): Promise<number> {
+  const [g] = await db.insert(groups).values({ name: 'Crew', ownerId }).returning({ id: groups.id });
+  await db.insert(groupMembers).values({ groupId: g!.id, userId: ownerId, role: 'owner' });
+  for (const m of memberIds) await db.insert(groupMembers).values({ groupId: g!.id, userId: m, role: 'member' });
+  return g!.id;
 }
 
 async function createTable(token: string, body: Record<string, unknown> = {}) {
@@ -194,5 +201,68 @@ describe('Poker routes', () => {
     expect(ok.status).toBe(200);
     expect(ok.body.invited).toBe(true);
     void stranger;
+  });
+
+  describe('private-table join authorization', () => {
+    it('lets the owner sit at their own private table but blocks an outsider', async () => {
+      const owner = await createUser({ username: 'owner', balance: 1000 });
+      const outsider = await createUser({ username: 'outsider', balance: 1000 });
+      const id = await createTable(owner.token, { type: 'private' });
+
+      // Owner can view and sit.
+      expect((await auth('get', `/api/poker/tables/${id}`, owner.token)).status).toBe(200);
+      expect((await auth('post', `/api/poker/tables/${id}/sit`, owner.token).send({ seatIndex: 0, buyIn: 500 })).status).toBe(200);
+
+      // An outsider can neither view nor sit (403), and never lost coins.
+      expect((await auth('get', `/api/poker/tables/${id}`, outsider.token)).status).toBe(403);
+      const sit = await auth('post', `/api/poker/tables/${id}/sit`, outsider.token).send({ seatIndex: 1, buyIn: 500 });
+      expect(sit.status).toBe(403);
+      expect(await getBalance(outsider.user.id)).toBe(1000);
+
+      // The table is hidden from the outsider's lobby but visible to the owner.
+      const outsiderLobby = await auth('get', '/api/poker/tables', outsider.token);
+      expect(outsiderLobby.body.tables.find((t: { id: number }) => t.id === id)).toBeUndefined();
+      const ownerLobby = await auth('get', '/api/poker/tables', owner.token);
+      expect(ownerLobby.body.tables.find((t: { id: number }) => t.id === id)).toBeTruthy();
+    });
+
+    it('grants access once a friend is invited (sit + lobby visibility)', async () => {
+      const owner = await createUser({ username: 'owner', balance: 1000 });
+      const friend = await createUser({ username: 'friend', balance: 1000 });
+      const id = await createTable(owner.token, { type: 'private' });
+      await auth('post', `/api/poker/tables/${id}/sit`, owner.token).send({ seatIndex: 0, buyIn: 500 });
+
+      // Before the invite the friend is locked out.
+      expect((await auth('post', `/api/poker/tables/${id}/sit`, friend.token).send({ seatIndex: 1, buyIn: 500 })).status).toBe(403);
+
+      // Invite the friend (friend-gated) → persisted grant.
+      await makeFriends(owner.user.id, friend.user.id);
+      expect((await auth('post', `/api/poker/tables/${id}/invite`, owner.token).send({ username: 'friend' })).status).toBe(200);
+
+      // Now the friend sees it in their lobby and can sit.
+      const lobby = await auth('get', '/api/poker/tables', friend.token);
+      expect(lobby.body.tables.find((t: { id: number }) => t.id === id)).toBeTruthy();
+      expect((await auth('post', `/api/poker/tables/${id}/sit`, friend.token).send({ seatIndex: 1, buyIn: 500 })).status).toBe(200);
+    });
+
+    it('lets a group member sit at a group-scoped private table', async () => {
+      const owner = await createUser({ username: 'owner', balance: 1000 });
+      const member = await createUser({ username: 'member', balance: 1000 });
+      const nonMember = await createUser({ username: 'nonmember', balance: 1000 });
+      const groupId = await makeGroup(owner.user.id, [member.user.id]);
+      const id = await createTable(owner.token, { type: 'private', groupId });
+
+      // A member can sit; a non-member is blocked.
+      expect((await auth('post', `/api/poker/tables/${id}/sit`, member.token).send({ seatIndex: 0, buyIn: 500 })).status).toBe(200);
+      expect((await auth('post', `/api/poker/tables/${id}/sit`, nonMember.token).send({ seatIndex: 1, buyIn: 500 })).status).toBe(403);
+    });
+
+    it('keeps public tables open to anyone', async () => {
+      const a = await createUser({ username: 'alice', balance: 1000 });
+      const b = await createUser({ username: 'bob', balance: 1000 });
+      const id = await createTable(a.token); // default type: public
+      expect((await auth('get', `/api/poker/tables/${id}`, b.token)).status).toBe(200);
+      expect((await auth('post', `/api/poker/tables/${id}/sit`, b.token).send({ seatIndex: 0, buyIn: 500 })).status).toBe(200);
+    });
   });
 });

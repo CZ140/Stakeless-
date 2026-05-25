@@ -127,6 +127,9 @@ export function createSocketServer(server: HttpServer): void {
     // current snapshot immediately so the page renders without waiting.
     socket.on('poker:subscribe', async (tableId: number) => {
       if (!Number.isInteger(tableId)) return;
+      // Private tables are spectatable only by authorized users (owner / group /
+      // invited) — mirrors the membership gate on group:subscribe.
+      if (!(await tableManager.canAccessTable(socket.data.userId, tableId))) return;
       await socket.join(`poker:${tableId}`);
       try {
         const eng = tableManager._engine(tableId);

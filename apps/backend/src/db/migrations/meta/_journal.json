@@ -64,6 +64,13 @@
       "when": 1779739727817,
       "tag": "0008_nasty_scream",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1779746892736,
+      "tag": "0009_mighty_blonde_phantom",
+      "breakpoints": true
     }
   ]
 }

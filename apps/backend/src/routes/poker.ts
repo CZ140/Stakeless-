@@ -17,6 +17,7 @@ function handlePokerError(err: unknown, res: Response): boolean {
   const map: Record<string, [number, string]> = {
     NOT_FOUND: [404, 'Table not found'],
     NOT_AUTHORIZED: [403, 'Not authorized'],
+    PRIVATE_TABLE: [403, 'This table is private — you need an invite to join'],
     INVALID_NAME: [400, 'Name must be 1–50 characters'],
     INVALID_STAKES: [400, 'Invalid blinds'],
     BAD_SEAT: [400, 'Invalid seat'],

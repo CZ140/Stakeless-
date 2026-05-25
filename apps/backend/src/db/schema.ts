@@ -236,3 +236,24 @@ export const pokerSeats = pgTable(
     uniqueUser: uniqueIndex('poker_seat_user_unique').on(t.tableId, t.userId),
   }),
 );
+
+// Standing access grant for a PRIVATE table. A seated player invites an accepted
+// friend; the invite both pushes a realtime toast AND records that the invitee may
+// sit at / view this otherwise-gated table (and surfaces it in their lobby).
+// Public tables need no invites — they are open to all. unique(table, invitee) so
+// re-inviting is idempotent; rows cascade away with the table.
+export const pokerInvites = pgTable(
+  'poker_invites',
+  {
+    id: serial('id').primaryKey(),
+    tableId: integer('table_id')
+      .notNull()
+      .references(() => pokerTables.id, { onDelete: 'cascade' }),
+    inviterId: integer('inviter_id').notNull().references(() => users.id),
+    inviteeId: integer('invitee_id').notNull().references(() => users.id),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+  },
+  (t) => ({
+    uniqueInvite: uniqueIndex('poker_invite_unique').on(t.tableId, t.inviteeId),
+  }),
+);
