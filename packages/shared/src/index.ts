@@ -64,6 +64,24 @@ export {
 } from './hilo.js';
 export type { HiloDirection, HiloCard, CardSuit } from './hilo.js';
 
+// Pump — a balloon cash-out ladder. Each pump compounds the multiplier; a hidden
+// pop hazard loses the stake; cash out any time. Difficulty/odds/multiplier math
+// shared by the backend (settlement) and frontend (live readout). The crypto RNG
+// (the hidden hazard layout) lives backend-only in services/pumpService.ts. See
+// pump.ts for the model and the exact-RTP derivation.
+export {
+  PUMP,
+  PUMP_DIFFICULTIES,
+  PUMP_DIFFICULTY_IDS,
+  isPumpDifficulty,
+  pumpConfig,
+  pumpMaxPumps,
+  pumpPopChance,
+  pumpSurvivalChance,
+  pumpMultiplier,
+} from './pump.js';
+export type { PumpDifficulty, PumpDifficultyConfig } from './pump.js';
+
 export interface ApiResponse<T = unknown> {
   success: boolean;
   data?: T;
@@ -76,7 +94,7 @@ export interface HealthResponse {
 }
 
 // Game types (stubs for future phases)
-export type GameType = 'roulette' | 'plinko' | 'mines' | 'blackjack' | 'dice' | 'slots' | 'crash' | 'flip' | 'hilo';
+export type GameType = 'roulette' | 'plinko' | 'mines' | 'blackjack' | 'dice' | 'slots' | 'crash' | 'flip' | 'hilo' | 'pump';
 
 // ─── Dice ─────────────────────────────────────────────────────────────────────
 // Pure dice math shared by the backend (settlement) and frontend (live readout)

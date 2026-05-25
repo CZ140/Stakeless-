@@ -11,6 +11,7 @@ import { MinesPage } from './pages/MinesPage';
 import { DicePage } from './pages/DicePage';
 import { CoinflipPage } from './pages/CoinflipPage';
 import { HiloPage } from './pages/HiloPage';
+import { PumpPage } from './pages/PumpPage';
 import { SlotsPage } from './pages/SlotsPage';
 import { CrashPage } from './pages/CrashPage';
 import { BlackjackPage } from './pages/BlackjackPage';
@@ -96,6 +97,14 @@ export default function App() {
         element={
           <ProtectedRoute>
             <HiloPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/games/pump"
+        element={
+          <ProtectedRoute>
+            <PumpPage />
           </ProtectedRoute>
         }
       />

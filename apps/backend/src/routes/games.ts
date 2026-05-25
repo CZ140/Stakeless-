@@ -12,8 +12,17 @@ import { rollDice, resolveDice } from '../services/diceService.js';
 import { spinGrid } from '../services/slotsService.js';
 import { flipCoin, resolveCoinflip } from '../services/coinflipService.js';
 import { initialHiloState, applyHiloGuess, type HiloSessionState } from '../services/hiloService.js';
+import { initialPumpState, applyPump, type PumpSessionState } from '../services/pumpService.js';
 import { startCrashRound, manualCashout, reconcileActiveCrash } from '../services/crashService.js';
-import { diceWinChance, diceWinChanceValid, resolveSlots, hiloDirectionAvailable, CRASH } from '@gambling/shared';
+import {
+  diceWinChance,
+  diceWinChanceValid,
+  resolveSlots,
+  hiloDirectionAvailable,
+  isPumpDifficulty,
+  pumpMaxPumps,
+  CRASH,
+} from '@gambling/shared';
 import {
   generateMineGrid,
   calculateMinesMultiplier,
@@ -914,6 +923,224 @@ gamesRouter.get('/hilo/active-session', requireAuth, async (req, res) => {
     });
   } catch (err: unknown) {
     console.error('[games] hilo active-session error:', err);
+    res.status(500).json({ error: 'An unexpected error occurred' });
+  }
+});
+
+// ─── Pump routes (balloon cash-out ladder) ──────────────────────────────────
+
+const pumpStartSchema = z.object({
+  betAmount: z.number().int().min(1).max(1_000_000),
+  difficulty: z.enum(['easy', 'medium', 'hard', 'expert']),
+});
+const pumpInflateSchema = z.object({
+  sessionId: z.number().int(),
+});
+const pumpCashoutSchema = z.object({
+  sessionId: z.number().int(),
+});
+
+// Load the caller's single open Pump session, or null.
+async function loadActivePump(userId: number) {
+  const rows = await db
+    .select()
+    .from(gameSessions)
+    .where(and(eq(gameSessions.userId, userId), eq(gameSessions.gameType, 'pump'), isNull(gameSessions.completedAt)))
+    .orderBy(desc(gameSessions.createdAt))
+    .limit(1);
+  return rows[0] ?? null;
+}
+
+// POST /api/games/pump/start
+// Deducts the bet and opens a round at 1× (0 pumps) on the chosen difficulty. The
+// hidden hazard layout stays server-side. Returns { sessionId, difficulty, pumps,
+// multiplier, maxPumps, newBalance }. 402 INSUFFICIENT_FUNDS, 409 if a round is
+// already in progress.
+gamesRouter.post('/pump/start', gameLimiter, clickInterval, requireAuth, async (req, res) => {
+  const parsed = pumpStartSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.issues[0]?.message ?? 'Invalid request' });
+    return;
+  }
+  const userId = req.user!.id;
+  const { betAmount, difficulty } = parsed.data;
+  if (!isPumpDifficulty(difficulty)) {
+    res.status(400).json({ error: 'Invalid difficulty' });
+    return;
+  }
+
+  try {
+    const existing = await loadActivePump(userId);
+    if (existing) {
+      res.status(409).json({ error: 'You already have a round in progress' });
+      return;
+    }
+
+    const { newBalance } = await deductBet(userId, betAmount, 'pump');
+    const state = initialPumpState(difficulty);
+    const [session] = await db
+      .insert(gameSessions)
+      .values({ userId, gameType: 'pump', state: JSON.stringify(state), betAmount })
+      .returning({ id: gameSessions.id });
+
+    io?.to(`user:${userId}`).emit('balance:update', { balance: newBalance });
+    res.json({
+      sessionId: session!.id,
+      difficulty,
+      pumps: 0,
+      multiplier: 1,
+      maxPumps: pumpMaxPumps(difficulty),
+      newBalance,
+    });
+  } catch (err: unknown) {
+    const code = (err as { code?: string }).code;
+    if (code === 'INSUFFICIENT_FUNDS') { res.status(402).json({ error: 'Insufficient funds' }); return; }
+    if (code === 'BET_TOO_SMALL') { res.status(400).json({ error: 'Bet amount too small' }); return; }
+    console.error('[games] pump start error:', err);
+    res.status(500).json({ error: 'An unexpected error occurred' });
+  }
+});
+
+// POST /api/games/pump/inflate
+// Reveals the next hidden cell. A safe cell compounds the multiplier and the round
+// continues; a hazard pops the balloon and settles a loss. Returns 200
+// { popped, pumps, multiplier, maxedOut, newBalance? }. 400 if the round isn't
+// active or is already maxed, 404 if the session isn't the caller's.
+gamesRouter.post('/pump/inflate', gameLimiter, clickInterval, requireAuth, async (req, res) => {
+  const parsed = pumpInflateSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.issues[0]?.message ?? 'Invalid request' });
+    return;
+  }
+  const userId = req.user!.id;
+  const { sessionId } = parsed.data;
+
+  try {
+    const rows = await db
+      .select()
+      .from(gameSessions)
+      .where(and(eq(gameSessions.id, sessionId), eq(gameSessions.userId, userId), isNull(gameSessions.completedAt)));
+    const session = rows[0];
+    if (!session) {
+      res.status(404).json({ error: 'Session not found' });
+      return;
+    }
+
+    const state = JSON.parse(session.state) as PumpSessionState;
+    if (state.status !== 'active') {
+      res.status(400).json({ error: 'Round already ended' });
+      return;
+    }
+    // The balloon is maxed — only hazards remain, so a pump would be a guaranteed
+    // pop. Force the player to cash out instead of auto-losing their winnings.
+    if (state.pumps >= pumpMaxPumps(state.difficulty)) {
+      res.status(400).json({ error: 'Balloon is maxed — cash out' });
+      return;
+    }
+
+    const { popped, pumps, multiplier } = applyPump(state);
+    const maxedOut = pumps >= pumpMaxPumps(state.difficulty);
+
+    if (popped) {
+      // Pop — round over, stake already deducted, nothing credited.
+      await db
+        .update(gameSessions)
+        .set({ state: JSON.stringify(state), completedAt: new Date() })
+        .where(eq(gameSessions.id, sessionId));
+      const { newBalance } = await settleBet(userId, 0, session.betAmount, `pop_${pumps}`, 'pump');
+      io?.to(`user:${userId}`).emit('balance:update', { balance: newBalance });
+      await applyTierUp(userId);
+      res.json({ popped: true, pumps, multiplier, maxedOut: false, newBalance });
+      return;
+    }
+
+    // Survived — advance the ladder; the player may pump again or cash out.
+    await db
+      .update(gameSessions)
+      .set({ state: JSON.stringify(state), updatedAt: new Date() })
+      .where(eq(gameSessions.id, sessionId));
+    res.json({ popped: false, pumps, multiplier, maxedOut });
+  } catch (err: unknown) {
+    console.error('[games] pump inflate error:', err);
+    res.status(500).json({ error: 'An unexpected error occurred' });
+  }
+});
+
+// POST /api/games/pump/cashout
+// Locks in the current cumulative multiplier. Requires at least one pump. Returns
+// 200 { payout, newBalance, multiplier, pumps }. 400 if no pump has been made or
+// the round already ended, 404 if not the caller's session.
+gamesRouter.post('/pump/cashout', gameLimiter, clickInterval, requireAuth, async (req, res) => {
+  const parsed = pumpCashoutSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.issues[0]?.message ?? 'Invalid request' });
+    return;
+  }
+  const userId = req.user!.id;
+  const { sessionId } = parsed.data;
+
+  try {
+    const rows = await db
+      .select()
+      .from(gameSessions)
+      .where(and(eq(gameSessions.id, sessionId), eq(gameSessions.userId, userId), isNull(gameSessions.completedAt)));
+    const session = rows[0];
+    if (!session) {
+      res.status(404).json({ error: 'Session not found' });
+      return;
+    }
+
+    const state = JSON.parse(session.state) as PumpSessionState;
+    if (state.status !== 'active') {
+      res.status(400).json({ error: 'Round already ended' });
+      return;
+    }
+    if (state.pumps === 0) {
+      res.status(400).json({ error: 'Pump at least once before cashing out' });
+      return;
+    }
+
+    const payout = Math.floor(session.betAmount * state.multiplier);
+    state.status = 'cashout';
+    await db
+      .update(gameSessions)
+      .set({ state: JSON.stringify(state), completedAt: new Date() })
+      .where(eq(gameSessions.id, sessionId));
+
+    const { newBalance } = await settleBet(userId, payout, session.betAmount, `cashout_${state.pumps}`, 'pump');
+    io?.to(`user:${userId}`).emit('balance:update', { balance: newBalance });
+    await applyTierUp(userId);
+    res.json({ payout, newBalance, multiplier: state.multiplier, pumps: state.pumps });
+  } catch (err: unknown) {
+    console.error('[games] pump cashout error:', err);
+    res.status(500).json({ error: 'An unexpected error occurred' });
+  }
+});
+
+// GET /api/games/pump/active-session
+// Resume support: returns the open round (without the hidden hazard layout) so a
+// refresh can rejoin the ladder. Returns { session: null } when there is none.
+gamesRouter.get('/pump/active-session', requireAuth, async (req, res) => {
+  const userId = req.user!.id;
+  try {
+    const session = await loadActivePump(userId);
+    if (!session) {
+      res.json({ session: null });
+      return;
+    }
+    const state = JSON.parse(session.state) as PumpSessionState;
+    res.json({
+      session: {
+        sessionId: session.id,
+        difficulty: state.difficulty,
+        pumps: state.pumps,
+        multiplier: state.multiplier,
+        maxPumps: pumpMaxPumps(state.difficulty),
+        betAmount: session.betAmount,
+      },
+    });
+  } catch (err: unknown) {
+    console.error('[games] pump active-session error:', err);
     res.status(500).json({ error: 'An unexpected error occurred' });
   }
 });

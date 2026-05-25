@@ -20,13 +20,13 @@ const GAMES: GameCardData[] = [
   { id: 'dice', name: 'Dice', route: '/games/dice', tag: 'Pure RNG', rtp: '97.0%' },
   { id: 'flip', name: 'Coin Flip', route: '/games/flip', tag: 'Coin toss', rtp: '97.0%' },
   { id: 'hilo', name: 'Hi-Lo', route: '/games/hilo', tag: 'Card ladder', rtp: '97.0%' },
+  { id: 'pump', name: 'Pump', route: '/games/pump', tag: 'Balloon', rtp: '97.0%' },
   { id: 'blackjack', name: 'Blackjack', route: '/games/blackjack', tag: 'Strategy', rtp: '99.5%' },
 ];
 
 // Planned games (THE_NEXT_STEP lineup) — shown as non-clickable "coming soon" tiles.
 const COMING_SOON: GameCardData[] = [
   { id: 'chicken', name: 'Chicken Road', route: '', tag: 'Cash-out ladder', eta: '~4 weeks' },
-  { id: 'pump', name: 'Pump', route: '', tag: 'Balloon', eta: '~6 weeks' },
   { id: 'rps', name: 'Rock·Paper·Scissors', route: '', tag: '3-way duel', eta: '~8 weeks' },
 ];
 
