@@ -23,6 +23,13 @@ function err(code: string, message: string): Error {
   return Object.assign(new Error(message), { code });
 }
 
+// Drizzle wraps the driver error, so a Postgres unique-violation (23505) surfaces
+// on the error or its .cause.
+function isUniqueViolation(e: unknown): boolean {
+  const code = (e as { code?: string }).code ?? (e as { cause?: { code?: string } }).cause?.code;
+  return code === '23505';
+}
+
 // Columns surfaced across the social UI — never selects password_hash etc.
 const userCols = {
   id: users.id,
@@ -133,7 +140,7 @@ export async function sendFriendRequest(
       .returning({ id: friendships.id, createdAt: friendships.createdAt });
   } catch (e) {
     // Unique-pair violation from a concurrent identical request → treat as existing.
-    if ((e as { code?: string }).code === '23505') throw err('REQUEST_EXISTS', 'A request is already pending');
+    if (isUniqueViolation(e)) throw err('REQUEST_EXISTS', 'A request is already pending');
     throw e;
   }
   const createdAt = inserted!.createdAt.toISOString();

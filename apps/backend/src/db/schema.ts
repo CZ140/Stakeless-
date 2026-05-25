@@ -142,3 +142,55 @@ export const friendships = pgTable(
     uniquePair: uniqueIndex('friendship_unique_pair').on(t.requesterId, t.addresseeId),
   }),
 );
+
+// ─── Social: groups ───────────────────────────────────────────────────────────
+// A named set of people with a private "who's richest" leaderboard. ownerId is a
+// denormalized convenience; the authoritative owner is the group_members row with
+// role='owner' (kept in sync inside a transaction on transfer).
+export const groups = pgTable('groups', {
+  id: serial('id').primaryKey(),
+  name: varchar('name', { length: 50 }).notNull(),
+  description: varchar('description', { length: 140 }),
+  ownerId: integer('owner_id').notNull().references(() => users.id),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+});
+
+export const groupMembers = pgTable(
+  'group_members',
+  {
+    id: serial('id').primaryKey(),
+    groupId: integer('group_id')
+      .notNull()
+      .references(() => groups.id, { onDelete: 'cascade' }),
+    userId: integer('user_id').notNull().references(() => users.id),
+    // 'owner' | 'admin' | 'member'
+    role: varchar('role', { length: 20 }).notNull().default('member'),
+    joinedAt: timestamp('joined_at').notNull().defaultNow(),
+  },
+  (t) => ({
+    uniqueMembership: uniqueIndex('group_member_unique').on(t.groupId, t.userId),
+  }),
+);
+
+export const groupInvites = pgTable(
+  'group_invites',
+  {
+    id: serial('id').primaryKey(),
+    groupId: integer('group_id')
+      .notNull()
+      .references(() => groups.id, { onDelete: 'cascade' }),
+    inviterId: integer('inviter_id').notNull().references(() => users.id),
+    inviteeId: integer('invitee_id').notNull().references(() => users.id),
+    // 'pending' | 'accepted' | 'declined'
+    status: varchar('status', { length: 20 }).notNull().default('pending'),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+    respondedAt: timestamp('responded_at'),
+  },
+  (t) => ({
+    // At most one PENDING invite per (group, invitee); re-invite allowed after a
+    // decline. Partial unique index — same pattern as 0005's crash index.
+    onePendingInvite: uniqueIndex('group_invite_one_pending')
+      .on(t.groupId, t.inviteeId)
+      .where(sql`status = 'pending'`),
+  }),
+);

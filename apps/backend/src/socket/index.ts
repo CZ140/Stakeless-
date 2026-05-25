@@ -1,8 +1,15 @@
 import { Server } from 'socket.io';
 import type { Server as HttpServer } from 'node:http';
-import type { FriendDTO, FriendRequestDTO, GroupInviteDTO } from '@gambling/shared';
+import type {
+  FriendDTO,
+  FriendRequestDTO,
+  GroupInviteDTO,
+  GroupLeaderboardSnapshot,
+} from '@gambling/shared';
 import { attachAuthMiddleware } from './authMiddleware.js';
 import { startLeaderboardBroadcast } from './leaderboardBroadcast.js';
+import { startGroupLeaderboardBroadcast } from './groupLeaderboardBroadcast.js';
+import { isGroupMember, computeGroupLeaderboard } from '../services/groupService.js';
 
 interface LeaderboardRow {
   id: number;
@@ -42,10 +49,15 @@ interface ServerToClientEvents {
   'friend:request': (data: { request: FriendRequestDTO }) => void;
   'friend:accepted': (data: { friend: FriendDTO }) => void;
   'group:invite': (data: { invite: GroupInviteDTO }) => void;
+  // Private group leaderboard — pushed to the group:<id> room (members only).
+  'group:leaderboard': (data: { groupId: number; snapshot: GroupLeaderboardSnapshot }) => void;
 }
 
 interface ClientToServerEvents {
-  // Clients do not send custom events yet (group:subscribe added in the Groups phase)
+  // Subscribe/unsubscribe to a group's private leaderboard room. Subscribe is
+  // membership-verified server-side before the socket joins.
+  'group:subscribe': (groupId: number) => void;
+  'group:unsubscribe': (groupId: number) => void;
 }
 
 interface SocketData {
@@ -71,7 +83,29 @@ export function createSocketServer(server: HttpServer): void {
       void socket.join(`user:${userId}`);
     }
     // All sockets (auth and guest) receive leaderboard:update via io.emit
+
+    // Join a group's private leaderboard room — only after verifying the socket's
+    // user is a member (else anyone could read any group's board). Pushes an
+    // immediate snapshot so the page doesn't wait for the next broadcast tick.
+    socket.on('group:subscribe', async (groupId: number) => {
+      const uid = socket.data.userId;
+      if (uid === undefined || !Number.isInteger(groupId)) return;
+      try {
+        if (await isGroupMember(uid, groupId)) {
+          await socket.join(`group:${groupId}`);
+          const snapshot = await computeGroupLeaderboard(groupId);
+          io.to(socket.id).emit('group:leaderboard', { groupId, snapshot });
+        }
+      } catch (err) {
+        console.error('[socket] group:subscribe failed:', err);
+      }
+    });
+
+    socket.on('group:unsubscribe', (groupId: number) => {
+      void socket.leave(`group:${groupId}`);
+    });
   });
 
   startLeaderboardBroadcast(io);
+  startGroupLeaderboardBroadcast(io);
 }
