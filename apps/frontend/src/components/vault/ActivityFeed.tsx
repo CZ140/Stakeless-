@@ -19,6 +19,7 @@ const GAME_LABEL: Record<string, string> = {
   plinko: 'Plinko',
   mines: 'Mines',
   blackjack: 'Blackjack',
+  flip: 'Coin Flip',
 };
 
 const ROULETTE_RED = new Set([
@@ -48,6 +49,11 @@ function describe(row: RawActivity): string {
         return `Cashed out · ${n} gem${n === 1 ? '' : 's'}`;
       }
       return 'Round settled';
+    }
+    case 'flip': {
+      // outcome is stored as `${call}=${result}` (e.g. "heads=tails").
+      const m = /^(heads|tails)=(heads|tails)$/.exec(outcome);
+      return m ? `Landed ${m[2]}` : 'Coin flipped';
     }
     case 'blackjack':
       switch (outcome) {

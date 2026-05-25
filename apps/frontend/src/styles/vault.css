@@ -2044,6 +2044,46 @@ body::before {
 
 /* .banner-dice card gradient is defined in the game-card section above. */
 
+/* ─── Coin Flip ───────────────────────────────────────────────────────────────
+   The .dice-stats stat-strip is reused as-is for the live stats row below. */
+.coin-stage {
+  display: flex; flex-direction: column; align-items: center;
+  gap: 26px; padding: 22px 12px; width: 100%;
+}
+/* Perspective container so the 3D rotateX reads as a tumbling coin, not a squash. */
+.coin-scene { perspective: 900px; width: 168px; height: 168px; }
+.coin {
+  position: relative; width: 168px; height: 168px;
+  transform-style: preserve-3d; will-change: transform;
+}
+.coin-face {
+  position: absolute; inset: 0; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  backface-visibility: hidden; -webkit-backface-visibility: hidden;
+  font-family: var(--font-mono, monospace); font-size: 64px; font-weight: 800;
+  border: 4px solid #7a5a25;
+  box-shadow:
+    inset 0 6px 16px rgba(255, 255, 255, 0.25),
+    inset 0 -8px 18px rgba(0, 0, 0, 0.35),
+    0 14px 32px rgba(0, 0, 0, 0.5);
+}
+.coin-face.heads {
+  background: radial-gradient(circle at 35% 30%, #ffe7a8, #d4a857 60%, #9b7330);
+  color: #3a2810;
+}
+.coin-face.tails {
+  background: radial-gradient(circle at 35% 30%, #f5e3b0, #c9a24e 60%, #8a6528);
+  color: #34250e;
+  transform: rotateX(180deg);
+}
+.coin-result {
+  font-family: var(--font-mono, monospace); font-size: 15px; font-weight: 700;
+  letter-spacing: 0.12em; text-align: center; min-height: 20px;
+}
+.coin-call { width: 100%; max-width: 340px; }
+
+/* .banner-flip card gradient is defined in the game-card section above. */
+
 /* ─── Slots ─────────────────────────────────────────────────────────────────── */
 .slots-stage {
   display: flex; flex-direction: column; align-items: center;

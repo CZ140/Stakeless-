@@ -49,6 +49,14 @@ export const DiceIcon = ({ size = 18 }: IconProps) => (
   </svg>
 );
 
+export const FlipIcon = ({ size = 18 }: IconProps) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" {...stroke}>
+    <ellipse cx="12" cy="12" rx="5.5" ry="9" />
+    <path d="M12 3 C8.5 3 8.5 21 12 21" />
+    <path d="M12 3 C15.5 3 15.5 21 12 21" />
+  </svg>
+);
+
 export const SlotsIcon = ({ size = 18 }: IconProps) => (
   <svg width={size} height={size} viewBox="0 0 24 24" {...stroke}>
     <rect x="3" y="5" width="18" height="14" rx="2" />
@@ -224,4 +232,5 @@ export const gameIcons: Record<string, (props: IconProps) => ReactElement> = {
   plinko: PlinkoIcon,
   mines: MinesIcon,
   blackjack: BlackjackIcon,
+  flip: FlipIcon,
 };

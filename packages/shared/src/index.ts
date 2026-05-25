@@ -42,6 +42,12 @@ export {
   isValidAutoCashout,
 } from './crash.js';
 
+// Coin Flip — a single fair 50/50 toss. Multiplier math shared by the backend
+// (settlement) and frontend (live readout). The crypto RNG (flipCoin) lives
+// backend-only in services/coinflipService.ts. See coinflip.ts for the RTP math.
+export { COINFLIP, coinflipMultiplier } from './coinflip.js';
+export type { CoinSide } from './coinflip.js';
+
 export interface ApiResponse<T = unknown> {
   success: boolean;
   data?: T;
@@ -54,7 +60,7 @@ export interface HealthResponse {
 }
 
 // Game types (stubs for future phases)
-export type GameType = 'roulette' | 'plinko' | 'mines' | 'blackjack' | 'dice' | 'slots' | 'crash';
+export type GameType = 'roulette' | 'plinko' | 'mines' | 'blackjack' | 'dice' | 'slots' | 'crash' | 'flip';
 
 // ─── Dice ─────────────────────────────────────────────────────────────────────
 // Pure dice math shared by the backend (settlement) and frontend (live readout)

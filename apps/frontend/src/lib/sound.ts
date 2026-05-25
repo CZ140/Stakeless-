@@ -236,6 +236,14 @@ class SoundManager {
     this.noise({ dur: 0.22, gain: 0.16, type: 'bandpass', freq: 1600, q: 0.7 });
   }
 
+  // ── Coin Flip ───────────────────────────────────────────────────────────────
+
+  /** A soft tumbling whoosh as the coin spins through the air. */
+  coinFlip(): void {
+    this.noise({ dur: 0.5, gain: 0.1, type: 'bandpass', freq: 1200, q: 0.6 });
+    this.tone({ freq: 420, type: 'triangle', dur: 0.5, gain: 0.07, slideTo: 760 });
+  }
+
   // ── Crash ─────────────────────────────────────────────────────────────────
 
   /** Rising-tension loop; call setRate(rate) each frame, rate grows with multiplier. */

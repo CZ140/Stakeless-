@@ -18,6 +18,7 @@ const GAMES: GameCardData[] = [
   { id: 'slots', name: 'Slots', route: '/games/slots', tag: 'Spin', rtp: '97.1%' },
   { id: 'mines', name: 'Mines', route: '/games/mines', tag: 'Risk', rtp: '97.0%' },
   { id: 'dice', name: 'Dice', route: '/games/dice', tag: 'Pure RNG', rtp: '97.0%' },
+  { id: 'flip', name: 'Coin Flip', route: '/games/flip', tag: 'Coin toss', rtp: '97.0%' },
   { id: 'blackjack', name: 'Blackjack', route: '/games/blackjack', tag: 'Strategy', rtp: '99.5%' },
 ];
 
@@ -25,7 +26,6 @@ const GAMES: GameCardData[] = [
 const COMING_SOON: GameCardData[] = [
   { id: 'chicken', name: 'Chicken Road', route: '', tag: 'Cash-out ladder', eta: '~4 weeks' },
   { id: 'hilo', name: 'Hi-Lo', route: '', tag: 'Card guess', eta: '~3 weeks' },
-  { id: 'flip', name: 'Flip', route: '', tag: 'Coin toss', eta: '~2 weeks' },
   { id: 'pump', name: 'Pump', route: '', tag: 'Balloon', eta: '~6 weeks' },
   { id: 'rps', name: 'Rock·Paper·Scissors', route: '', tag: '3-way duel', eta: '~8 weeks' },
 ];

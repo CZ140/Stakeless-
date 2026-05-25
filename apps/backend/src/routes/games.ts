@@ -10,6 +10,7 @@ import { resolveRouletteBets } from '../services/rouletteService.js';
 import { resolvePlinko, rollPlinkoBucket } from '../services/plinkoService.js';
 import { rollDice, resolveDice } from '../services/diceService.js';
 import { spinGrid } from '../services/slotsService.js';
+import { flipCoin, resolveCoinflip } from '../services/coinflipService.js';
 import { startCrashRound, manualCashout, reconcileActiveCrash } from '../services/crashService.js';
 import { diceWinChance, diceWinChanceValid, resolveSlots, CRASH } from '@gambling/shared';
 import {
@@ -263,6 +264,54 @@ gamesRouter.post('/slots/bet', gameLimiter, clickInterval, requireAuth, async (r
     if (code === 'INSUFFICIENT_FUNDS') { res.status(402).json({ error: 'Insufficient funds' }); return; }
     if (code === 'BET_TOO_SMALL') { res.status(400).json({ error: 'Bet amount too small' }); return; }
     console.error('[games] slots bet error:', err);
+    res.status(500).json({ error: 'An unexpected error occurred' });
+  }
+});
+
+// ─── Coin Flip ─────────────────────────────────────────────────────────────
+
+const coinflipBetSchema = z.object({
+  betAmount: z.number().int().min(1).max(1_000_000),
+  call: z.enum(['heads', 'tails']),
+});
+
+// POST /api/games/flip/bet
+// Pipeline: validate → deductBet → crypto flip → resolveCoinflip → settleBet →
+// emit → tier reconcile. Instant-settle (no session). A fair 50/50 coin; a win
+// pays the shared 1.94× (RTP / 0.5), so the RTP is 97%.
+// Returns 200 { result, call, win, multiplier, profit, newBalance }.
+// Returns 400 on invalid input, 402 on INSUFFICIENT_FUNDS.
+gamesRouter.post('/flip/bet', gameLimiter, clickInterval, requireAuth, async (req, res) => {
+  const parsed = coinflipBetSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.issues[0]?.message ?? 'Invalid request' });
+    return;
+  }
+  const userId = req.user!.id;
+  const { betAmount, call } = parsed.data;
+
+  try {
+    await deductBet(userId, betAmount, 'flip');
+    const result = flipCoin();
+    const { win, multiplier } = resolveCoinflip(result, call);
+    // settleBet receives the gross payout (stake + winnings); 0 on a loss.
+    const grossPayout = win ? Math.floor(betAmount * multiplier) : 0;
+    const { newBalance } = await settleBet(
+      userId,
+      grossPayout,
+      betAmount,
+      `${call}=${result}`,
+      'flip',
+    );
+    io?.to(`user:${userId}`).emit('balance:update', { balance: newBalance });
+    await applyTierUp(userId);
+    // net profit shown to player = gross payout − stake (stake was already deducted)
+    res.json({ result, call, win, multiplier, profit: grossPayout - betAmount, newBalance });
+  } catch (err: unknown) {
+    const code = (err as { code?: string }).code;
+    if (code === 'INSUFFICIENT_FUNDS') { res.status(402).json({ error: 'Insufficient funds' }); return; }
+    if (code === 'BET_TOO_SMALL') { res.status(400).json({ error: 'Bet amount too small' }); return; }
+    console.error('[games] coinflip bet error:', err);
     res.status(500).json({ error: 'An unexpected error occurred' });
   }
 });
