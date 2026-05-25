@@ -8,7 +8,7 @@ import { signAccessToken } from '../src/services/tokenService.js';
 // with fileParallelism disabled so this never races another suite.)
 export async function resetDb(): Promise<void> {
   await db.execute(
-    sql`TRUNCATE TABLE users, game_logs, game_sessions, refresh_tokens, email_verification_tokens, daily_bonus_claims, admin_logs, friendships, groups, group_members, group_invites RESTART IDENTITY CASCADE`,
+    sql`TRUNCATE TABLE users, game_logs, game_sessions, refresh_tokens, email_verification_tokens, daily_bonus_claims, admin_logs, friendships, groups, group_members, group_invites, poker_tables, poker_seats RESTART IDENTITY CASCADE`,
   );
 }
 

@@ -194,3 +194,45 @@ export const groupInvites = pgTable(
       .where(sql`status = 'pending'`),
   }),
 );
+
+// ─── Poker ──────────────────────────────────────────────────────────────────
+// A cash-game table's lobby config. The live hand state (deck, board, betting)
+// is held in-memory by the table engine; only the config + each human's chip
+// stack persist. type 'public' has no owner; 'private' is owner-created and may
+// be scoped to a group (members can see/join). Blinds/buy-ins are bigint coins.
+export const pokerTables = pgTable('poker_tables', {
+  id: serial('id').primaryKey(),
+  name: varchar('name', { length: 50 }).notNull(),
+  type: varchar('type', { length: 20 }).notNull().default('public'), // 'public' | 'private'
+  ownerId: integer('owner_id').references(() => users.id),
+  groupId: integer('group_id').references(() => groups.id, { onDelete: 'cascade' }),
+  smallBlind: bigint('small_blind', { mode: 'number' }).notNull(),
+  bigBlind: bigint('big_blind', { mode: 'number' }).notNull(),
+  maxSeats: integer('max_seats').notNull().default(6),
+  minBuyIn: bigint('min_buy_in', { mode: 'number' }).notNull(),
+  maxBuyIn: bigint('max_buy_in', { mode: 'number' }).notNull(),
+  botTarget: integer('bot_target').notNull().default(0), // bots used to fill empty seats
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+});
+
+// One row per SEATED HUMAN; stack is the persisted snapshot (rewritten at each
+// hand end). Bots are in-memory only (no row). Buy-in deducts users.balance into
+// stack; leaving credits stack back. unique per (table,seat) and (table,user).
+export const pokerSeats = pgTable(
+  'poker_seats',
+  {
+    id: serial('id').primaryKey(),
+    tableId: integer('table_id')
+      .notNull()
+      .references(() => pokerTables.id, { onDelete: 'cascade' }),
+    userId: integer('user_id').notNull().references(() => users.id),
+    seatIndex: integer('seat_index').notNull(),
+    stack: bigint('stack', { mode: 'number' }).notNull(),
+    sittingOut: boolean('sitting_out').notNull().default(false),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+  },
+  (t) => ({
+    uniqueSeat: uniqueIndex('poker_seat_unique').on(t.tableId, t.seatIndex),
+    uniqueUser: uniqueIndex('poker_seat_user_unique').on(t.tableId, t.userId),
+  }),
+);

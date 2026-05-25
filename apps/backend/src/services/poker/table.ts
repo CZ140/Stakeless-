@@ -291,6 +291,25 @@ export class PokerTable {
     this.advance();
   }
 
+  // Mark a seat as leaving and fold it out of the current hand. If it is their
+  // turn this is just a normal fold; otherwise they are mucked and skipped (and
+  // the hand ends if only one live seat remains). The seat is removed/cashed out
+  // by the manager at hand end.
+  forceFold(seatIndex: number): void {
+    const s = this.seats[seatIndex];
+    if (!s) return;
+    s.leaving = true;
+    if (!this.isHandInProgress() || !s.inHand || s.status === 'folded' || s.status === 'allin') return;
+    if (this.actingIndex === seatIndex) {
+      this.applyAction(seatIndex, { type: 'fold' });
+      return;
+    }
+    s.status = 'folded';
+    s.hasActedThisStreet = true;
+    const live = this.occupiedSeats().filter((x) => x.inHand && x.status !== 'folded');
+    if (live.length <= 1) this.endUncontested(live[0]);
+  }
+
   private commit(s: EngineSeat, amount: number): void {
     const pay = Math.min(amount, s.stack);
     s.stack -= pay;

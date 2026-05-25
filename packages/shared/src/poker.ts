@@ -348,6 +348,23 @@ export interface PrivateHand {
   holeCards: Card[];
 }
 
+// Lobby row — one available/joinable table.
+export interface PokerTableSummary {
+  id: number;
+  name: string;
+  type: 'public' | 'private';
+  smallBlind: number;
+  bigBlind: number;
+  maxSeats: number;
+  minBuyIn: number;
+  maxBuyIn: number;
+  seatedHumans: number; // humans currently seated
+  botCount: number; // bots filling seats
+  handInProgress: boolean;
+  iAmSeated: boolean;
+  groupId: number | null;
+}
+
 export const POKER = {
   MAX_SEATS: 6,
   TURN_MS: 20_000,

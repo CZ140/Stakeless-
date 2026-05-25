@@ -11,6 +11,7 @@ import { profileRouter } from './routes/profile.js';
 import { adminRouter } from './routes/admin.js';
 import { friendsRouter } from './routes/friends.js';
 import { groupsRouter } from './routes/groups.js';
+import { pokerRouter } from './routes/poker.js';
 import { devRouter } from './routes/dev.js';
 
 export function createApp(): Express {
@@ -43,6 +44,7 @@ export function createApp(): Express {
   app.use('/api/admin', adminRouter);
   app.use('/api/friends', friendsRouter);
   app.use('/api/groups', groupsRouter);
+  app.use('/api/poker', pokerRouter);
 
   // Dev-only routes — never registered in production
   if (process.env.NODE_ENV !== 'production') {

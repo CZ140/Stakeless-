@@ -1,0 +1,278 @@
+// In-memory registry of live poker table engines + the money/persistence layer.
+// The single writer for poker tables: it owns the PokerTable engines, moves coins
+// between users.balance and seat stacks atomically, and persists each human's
+// stack at hand end. The realtime + bot layer (P4) attaches via `hooks` and calls
+// startNextHandIfReady() on a delay; nothing here touches sockets directly.
+import { eq, and, inArray, sql } from 'drizzle-orm';
+import { db } from '../../db/index.js';
+import { users, pokerTables, pokerSeats, groupMembers } from '../../db/schema.js';
+import { PokerTable } from './table.js';
+import { POKER } from '@gambling/shared';
+import type { PokerAction, PublicTableState, PrivateHand, PokerTableSummary } from '@gambling/shared';
+
+function err(code: string, message: string): Error {
+  return Object.assign(new Error(message), { code });
+}
+function isUniqueViolation(e: unknown): boolean {
+  const code = (e as { code?: string }).code ?? (e as { cause?: { code?: string } }).cause?.code;
+  return code === '23505';
+}
+
+export interface CreateTableInput {
+  name: string;
+  type: 'public' | 'private';
+  smallBlind: number;
+  bigBlind: number;
+  maxSeats?: number;
+  groupId?: number | null;
+  botTarget?: number;
+}
+
+// P4 attaches these to push state / arm turn timers / drive bots.
+export interface ManagerHooks {
+  onStateChange?: (tableId: number) => void;
+  onHandResult?: (tableId: number) => void;
+  onActorChanged?: (tableId: number) => void;
+  onHandEnded?: (tableId: number) => void; // schedule the next hand (with a delay)
+}
+
+class TableManager {
+  private engines = new Map<number, PokerTable>();
+  hooks: ManagerHooks = {};
+
+  // Build (or fetch) the live engine for a table, seating the persisted humans.
+  private async loadEngine(tableId: number): Promise<PokerTable> {
+    const existing = this.engines.get(tableId);
+    if (existing) return existing;
+
+    const [cfg] = await db.select().from(pokerTables).where(eq(pokerTables.id, tableId));
+    if (!cfg) throw err('NOT_FOUND', 'Table not found');
+    const eng = new PokerTable({
+      id: cfg.id,
+      name: cfg.name,
+      smallBlind: cfg.smallBlind,
+      bigBlind: cfg.bigBlind,
+      maxSeats: cfg.maxSeats,
+    });
+    const seats = await db
+      .select({
+        seatIndex: pokerSeats.seatIndex,
+        stack: pokerSeats.stack,
+        userId: users.id,
+        username: users.username,
+        avatarColor: users.avatarColor,
+      })
+      .from(pokerSeats)
+      .innerJoin(users, eq(pokerSeats.userId, users.id))
+      .where(eq(pokerSeats.tableId, tableId));
+    for (const s of seats) {
+      eng.seatPlayer(s.seatIndex, { userId: s.userId, username: s.username, avatarColor: s.avatarColor, isBot: false, stack: s.stack });
+    }
+    this.engines.set(tableId, eng);
+    return eng;
+  }
+
+  // ─── Lobby ────────────────────────────────────────────────────────────────
+  async createTable(userId: number, input: CreateTableInput): Promise<number> {
+    const name = input.name.trim();
+    if (name.length < 1 || name.length > 50) throw err('INVALID_NAME', 'Name must be 1–50 characters');
+    if (input.bigBlind <= 0 || input.smallBlind <= 0 || input.smallBlind > input.bigBlind) throw err('INVALID_STAKES', 'Invalid blinds');
+    const maxSeats = Math.min(POKER.MAX_SEATS, Math.max(2, input.maxSeats ?? POKER.MAX_SEATS));
+    const minBuyIn = input.bigBlind * POKER.MIN_BUYIN_BB;
+    const maxBuyIn = input.bigBlind * POKER.MAX_BUYIN_BB;
+    if (input.type === 'private' && input.groupId != null) {
+      // Must be a member of the group to scope a private table to it.
+      const [m] = await db
+        .select({ id: groupMembers.id })
+        .from(groupMembers)
+        .where(and(eq(groupMembers.groupId, input.groupId), eq(groupMembers.userId, userId)));
+      if (!m) throw err('NOT_AUTHORIZED', 'Not a member of that group');
+    }
+    const botTarget = Math.max(0, Math.min(maxSeats - 1, input.botTarget ?? 0));
+    const [row] = await db
+      .insert(pokerTables)
+      .values({
+        name,
+        type: input.type,
+        ownerId: input.type === 'private' ? userId : null,
+        groupId: input.type === 'private' ? input.groupId ?? null : null,
+        smallBlind: input.smallBlind,
+        bigBlind: input.bigBlind,
+        maxSeats,
+        minBuyIn,
+        maxBuyIn,
+        botTarget,
+      })
+      .returning({ id: pokerTables.id });
+    return row!.id;
+  }
+
+  async listTables(userId: number): Promise<PokerTableSummary[]> {
+    // Public tables + private tables in my groups + any table where I'm seated.
+    const myGroupRows = await db.select({ groupId: groupMembers.groupId }).from(groupMembers).where(eq(groupMembers.userId, userId));
+    const myGroupIds = myGroupRows.map((g) => g.groupId);
+    const mySeatRows = await db.select({ tableId: pokerSeats.tableId }).from(pokerSeats).where(eq(pokerSeats.userId, userId));
+    const mySeatTableIds = new Set(mySeatRows.map((s) => s.tableId));
+
+    const allTables = await db.select().from(pokerTables);
+    const seatCounts = await db
+      .select({ tableId: pokerSeats.tableId, n: sql<number>`count(*)`.mapWith(Number) })
+      .from(pokerSeats)
+      .groupBy(pokerSeats.tableId);
+    const countByTable = new Map(seatCounts.map((c) => [c.tableId, c.n]));
+
+    const visible = allTables.filter(
+      (t) => t.type === 'public' || mySeatTableIds.has(t.id) || (t.groupId != null && myGroupIds.includes(t.groupId)),
+    );
+    return visible.map((t) => {
+      const eng = this.engines.get(t.id);
+      return {
+        id: t.id,
+        name: t.name,
+        type: t.type as 'public' | 'private',
+        smallBlind: t.smallBlind,
+        bigBlind: t.bigBlind,
+        maxSeats: t.maxSeats,
+        minBuyIn: t.minBuyIn,
+        maxBuyIn: t.maxBuyIn,
+        seatedHumans: countByTable.get(t.id) ?? 0,
+        botCount: eng ? eng.occupiedSeats().filter((s) => s.isBot).length : 0,
+        handInProgress: eng ? eng.isHandInProgress() : false,
+        iAmSeated: mySeatTableIds.has(t.id),
+        groupId: t.groupId ?? null,
+      };
+    });
+  }
+
+  async getView(userId: number, tableId: number): Promise<{ table: PublicTableState; hand: PrivateHand | null }> {
+    const eng = await this.loadEngine(tableId);
+    return { table: eng.toPublicState(), hand: eng.privateHandFor(userId) };
+  }
+
+  // ─── Sit / leave (money) ─────────────────────────────────────────────────────
+  async sit(userId: number, tableId: number, seatIndex: number, buyIn: number): Promise<void> {
+    const [cfg] = await db.select().from(pokerTables).where(eq(pokerTables.id, tableId));
+    if (!cfg) throw err('NOT_FOUND', 'Table not found');
+    if (seatIndex < 0 || seatIndex >= cfg.maxSeats) throw err('BAD_SEAT', 'Invalid seat');
+    if (buyIn < cfg.minBuyIn || buyIn > cfg.maxBuyIn) throw err('BAD_BUYIN', `Buy-in must be ${cfg.minBuyIn}–${cfg.maxBuyIn}`);
+
+    const eng = await this.loadEngine(tableId);
+    if (eng.seatOfUser(userId)) throw err('ALREADY_SEATED', 'You are already at this table');
+    if (eng.occupiedSeats().some((s) => s.seatIndex === seatIndex)) throw err('SEAT_TAKEN', 'Seat taken');
+
+    const u = await db.transaction(async (tx) => {
+      const [row] = await tx
+        .select({ balance: users.balance, username: users.username, avatarColor: users.avatarColor })
+        .from(users)
+        .where(eq(users.id, userId))
+        .for('update');
+      if (!row) throw err('NOT_FOUND', 'User not found');
+      if (row.balance < buyIn) throw err('INSUFFICIENT_FUNDS', 'Not enough coins for that buy-in');
+      await tx.update(users).set({ balance: row.balance - buyIn }).where(eq(users.id, userId));
+      try {
+        await tx.insert(pokerSeats).values({ tableId, userId, seatIndex, stack: buyIn });
+      } catch (e) {
+        if (isUniqueViolation(e)) throw err('SEAT_TAKEN', 'Seat taken');
+        throw e;
+      }
+      return row;
+    });
+
+    eng.seatPlayer(seatIndex, { userId, username: u.username, avatarColor: u.avatarColor, isBot: false, stack: buyIn });
+    this.maybeStartHand(tableId, eng);
+    this.hooks.onStateChange?.(tableId);
+  }
+
+  async leave(userId: number, tableId: number): Promise<{ cashedOut: number }> {
+    const eng = await this.loadEngine(tableId);
+    const seat = eng.seatOfUser(userId);
+    if (!seat) throw err('NOT_SEATED', 'You are not at this table');
+
+    if (eng.isHandInProgress() && seat.inHand && seat.status !== 'folded') {
+      // Fold and flag leaving; cash-out + removal happen at hand end.
+      eng.forceFold(seat.seatIndex);
+      if (!eng.isHandInProgress()) await this.settle(tableId, eng);
+      else this.hooks.onStateChange?.(tableId);
+      return { cashedOut: 0 };
+    }
+    // Between hands → cash out the persisted stack now.
+    const stack = seat.stack;
+    await this.cashOut(userId, tableId, stack);
+    eng.removeSeat(seat.seatIndex);
+    this.hooks.onStateChange?.(tableId);
+    return { cashedOut: stack };
+  }
+
+  private async cashOut(userId: number, tableId: number, amount: number): Promise<void> {
+    await db.transaction(async (tx) => {
+      await tx.update(users).set({ balance: sql`${users.balance} + ${amount}` }).where(eq(users.id, userId));
+      await tx.delete(pokerSeats).where(and(eq(pokerSeats.tableId, tableId), eq(pokerSeats.userId, userId)));
+    });
+  }
+
+  // ─── Actions ────────────────────────────────────────────────────────────────
+  async act(userId: number, tableId: number, action: PokerAction): Promise<void> {
+    const eng = await this.loadEngine(tableId);
+    const seat = eng.seatOfUser(userId);
+    if (!seat) throw err('NOT_SEATED', 'You are not at this table');
+    if (eng.actingIndex !== seat.seatIndex) throw err('NOT_YOUR_TURN', 'It is not your turn');
+    eng.applyAction(seat.seatIndex, action); // throws coded ILLEGAL_ACTION / NOT_YOUR_TURN
+
+    if (!eng.isHandInProgress() && eng.street === 'showdown') {
+      await this.settle(tableId, eng);
+    } else {
+      this.hooks.onActorChanged?.(tableId);
+      this.hooks.onStateChange?.(tableId);
+    }
+  }
+
+  // ─── Hand lifecycle ───────────────────────────────────────────────────────────
+  private maybeStartHand(tableId: number, eng: PokerTable): void {
+    if (eng.canStartHand()) {
+      eng.startHand();
+      this.hooks.onActorChanged?.(tableId);
+      this.hooks.onStateChange?.(tableId);
+    }
+  }
+
+  // Called by P4 (after a short delay) or directly by tests to deal the next hand.
+  async startNextHandIfReady(tableId: number): Promise<boolean> {
+    const eng = await this.loadEngine(tableId);
+    if (!eng.canStartHand()) return false;
+    eng.startHand();
+    this.hooks.onActorChanged?.(tableId);
+    this.hooks.onStateChange?.(tableId);
+    return true;
+  }
+
+  // Persist stacks, cash out leavers + busted seats, fire result hooks. Leaves the
+  // table in 'showdown'; P4 schedules the next hand via startNextHandIfReady.
+  private async settle(tableId: number, eng: PokerTable): Promise<void> {
+    const humans = eng.occupiedSeats().filter((s) => !s.isBot);
+    // Persist every human's post-hand stack.
+    await Promise.all(
+      humans.map((s) =>
+        db.update(pokerSeats).set({ stack: s.stack }).where(and(eq(pokerSeats.tableId, tableId), eq(pokerSeats.userId, s.userId))),
+      ),
+    );
+    // Cash out + remove anyone who asked to leave.
+    for (const s of humans.filter((x) => x.leaving)) {
+      await this.cashOut(s.userId, tableId, s.stack);
+      eng.removeSeat(s.seatIndex);
+    }
+    this.hooks.onHandResult?.(tableId);
+    this.hooks.onStateChange?.(tableId);
+    this.hooks.onHandEnded?.(tableId);
+  }
+
+  // Test helper: drop all in-memory engines (the DB is truncated between tests, so
+  // cached engines keyed by reused table ids must be cleared too).
+  _resetAll(): void {
+    this.engines.clear();
+  }
+  _engine(tableId: number): PokerTable | undefined {
+    return this.engines.get(tableId);
+  }
+}
+
+export const tableManager = new TableManager();
