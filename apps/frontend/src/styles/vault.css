@@ -725,7 +725,14 @@ body::before {
 }
 .game-card .meta .name .live::before {
   content: ''; width: 5px; height: 5px; border-radius: 50%; background: var(--accent);
-  animation: pulse 2s infinite;
+  /* live-pulse bakes in a -1px nudge: flex-centring sits low against the cap-height,
+     and the shared `pulse` keyframe animates transform (so it would clobber a plain
+     translateY here). */
+  animation: live-pulse 2s infinite;
+}
+@keyframes live-pulse {
+  0%, 100% { opacity: 1; transform: translateY(-1px) scale(1); }
+  50% { opacity: 0.55; transform: translateY(-1px) scale(1.35); }
 }
 .game-card .meta .name .soon-label {
   display: flex; align-items: center; gap: 4px;
