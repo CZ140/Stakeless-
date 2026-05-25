@@ -1,11 +1,13 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { AppShell } from '../components/vault/AppShell';
 import { RouletteWheel } from '../components/RouletteWheel';
 import { ResultOverlay } from '../components/ResultOverlay';
 import { HowToPlayModal } from '../components/HowToPlayModal';
 import { useRouletteStore, getPocketColor, type BetZone, type PlacedChip } from '../stores/rouletteStore';
 import { useBalanceStore } from '../stores/balanceStore';
-import { useGameSounds } from '../hooks/useGameSounds';
+import { useAudioStore } from '../stores/audioStore';
+import { sound } from '../lib/sound';
+import { celebrate, winTier } from '../lib/juice';
 import { apiClient } from '../api/client';
 import { XIcon } from '../components/vault/icons';
 
@@ -28,13 +30,14 @@ export function RoulettePage() {
   const {
     placedChips, selectedChip, setSelectedChip, placeChip,
     undoLast, clearAll, halfBet, doubleBet, rebet,
-    gamePhase, isMuted, toggleMute, setGamePhase, addToHistory, history,
+    gamePhase, setGamePhase, addToHistory, history,
   } = useRouletteStore();
   const balance = useBalanceStore((s) => s.balance);
-  const { playWin, playLoss } = useGameSounds(isMuted);
+  const { muted, toggleMute } = useAudioStore();
+  const stageRef = useRef<HTMLDivElement>(null);
 
   const [winningPocket, setWinningPocket] = useState<number | null>(null);
-  const [lastResult, setLastResult] = useState<{ winningPocket: number; netAmount: number; bets: PlacedChip[] } | null>(null);
+  const [lastResult, setLastResult] = useState<{ winningPocket: number; netAmount: number; wager: number; bets: PlacedChip[] } | null>(null);
   const [showHowTo, setShowHowTo] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pendingBalance, setPendingBalance] = useState<number | null>(null);
@@ -52,6 +55,8 @@ export function RoulettePage() {
 
   function place(zone: BetZone) {
     if (locked) return;
+    sound.unlock();
+    sound.chip();
     placeChip(zone);
   }
 
@@ -61,6 +66,8 @@ export function RoulettePage() {
       return;
     }
     if (totalBet === 0 || isSpinning) return;
+    sound.unlock();
+    sound.bet();
     setError(null);
     setGamePhase('spinning');
     try {
@@ -69,7 +76,7 @@ export function RoulettePage() {
       localStorage.setItem('lastBet_roulette', JSON.stringify(placedChips));
       const netAmount = profit - totalBet;
       setWinningPocket(pocket);
-      setLastResult({ winningPocket: pocket, netAmount, bets: [...placedChips] });
+      setLastResult({ winningPocket: pocket, netAmount, wager: totalBet, bets: [...placedChips] });
       setPendingBalance(newBalance);
     } catch (err: unknown) {
       const axiosErr = err as { response?: { data?: { error?: string }; status?: number } };
@@ -82,8 +89,11 @@ export function RoulettePage() {
   function handleWheelSettled() {
     if (pendingBalance !== null) useBalanceStore.getState().setBalance(pendingBalance);
     const net = lastResult?.netAmount ?? 0;
-    if (net > 0) playWin();
-    else playLoss();
+    if (net > 0) {
+      celebrate(winTier(net, lastResult?.wager ?? 0), { shakeEl: stageRef.current, originEl: stageRef.current });
+    } else {
+      celebrate('none');
+    }
     if (lastResult) addToHistory(lastResult.winningPocket);
     setGamePhase('result');
     clearAll();
@@ -151,6 +161,7 @@ export function RoulettePage() {
         <div className="game-stage">
           <div className="roulette-stage">
             <div
+              ref={stageRef}
               style={{ position: 'relative', cursor: isResult ? 'pointer' : 'default' }}
               onClick={isResult ? handlePlayAgain : undefined}
               title={isResult ? 'Click to bet again' : undefined}
@@ -253,7 +264,7 @@ export function RoulettePage() {
               <button type="button" disabled={locked} onClick={doubleBet}>2×</button>
               <button type="button" disabled={locked} onClick={undoLast}>Undo</button>
               <button type="button" disabled={locked} onClick={handleRebet}>Rebet</button>
-              <button type="button" onClick={toggleMute} title={isMuted ? 'Unmute' : 'Mute'}>{isMuted ? '🔇' : '🔊'}</button>
+              <button type="button" onClick={toggleMute} title={muted ? 'Unmute' : 'Mute'}>{muted ? '🔇' : '🔊'}</button>
             </div>
 
             <div className="card-inset" style={{ padding: 12 }}>

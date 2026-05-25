@@ -1,6 +1,8 @@
-import { useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import gsap from 'gsap';
 import { useGSAP } from '@gsap/react';
+import { sound, type SoundHandle } from '../lib/sound';
+import { prefersReducedMotion } from '../hooks/useReducedMotion';
 
 gsap.registerPlugin(useGSAP);
 
@@ -8,9 +10,9 @@ const WHEEL_SEQUENCE = [0,32,15,19,4,21,2,25,17,34,6,27,13,36,11,30,8,23,10,5,24
 const POCKET_ANGLE = 360 / 37;
 const RED_NUMBERS = new Set([1,3,5,7,9,12,14,16,18,19,21,23,25,27,30,32,34,36]);
 
-// Ball orbit radii (px from wheel centre). The ball rides the outer rim while
-// spinning, then eases inward to settle into the pocket as it comes to rest.
-const BALL_RIM_RADIUS = 168;
+// Ball orbit radii (px from wheel centre). The ball rides the outer track while
+// spinning, then drops inward and settles into the pocket ring.
+const BALL_RIM_RADIUS = 180;
 const BALL_REST_RADIUS = 150;
 const SPIN_DURATION = 6;
 
@@ -41,47 +43,74 @@ export function RouletteWheel({ winningPocket, onSettled }: RouletteWheelProps) 
   const ballRef = useRef<HTMLDivElement>(null);
   const currentRotationRef = useRef(0);
   const ballRotationRef = useRef(0);
+  const whirRef = useRef<SoundHandle | null>(null);
+
+  // Stop any whir if we unmount mid-spin.
+  useEffect(() => () => whirRef.current?.stop(0), []);
 
   useGSAP(() => {
     if (winningPocket === null || !containerRef.current) return;
+    const reduced = prefersReducedMotion();
+
+    // Bring the winning pocket's centre under the 12-o'clock marker. We accumulate
+    // from the true (non-modded) last rotation so subsequent spins keep moving forward.
     const pocketIndex = WHEEL_SEQUENCE.indexOf(winningPocket);
-    // Each pocket's leading edge sits at pocketIndex * POCKET_ANGLE degrees clockwise from 12 o'clock.
-    // To bring that pocket's centre under the 12 o'clock marker, the wheel must rotate by
-    // pocketIndex * POCKET_ANGLE + POCKET_ANGLE/2 degrees. We add 5 full extra rotations so the
-    // spin is always visually dramatic, and we accumulate from the true (non-modded) last rotation
-    // so that subsequent spins keep rotating forward instead of snapping back.
     const pocketCentreAngle = pocketIndex * POCKET_ANGLE + POCKET_ANGLE / 2;
-    // When the wheel rotates clockwise by R degrees, the gradient position under the top arrow is
-    // (360 - R%360) % 360. To land pocketCentreAngle under the arrow we need:
-    //   R % 360 = (360 - pocketCentreAngle) % 360
     const targetAngle = (360 - pocketCentreAngle) % 360;
     const currentNorm = currentRotationRef.current % 360;
     const delta = (targetAngle - currentNorm + 360) % 360;
-    const targetRotation = currentRotationRef.current + 5 * 360 + delta;
+    const wheelSpins = reduced ? 1 : 5;
+    const targetRotation = currentRotationRef.current + wheelSpins * 360 + delta;
 
-    // The ball orbits counter-clockwise (opposite the wheel) and always settles at
-    // the top (12 o'clock) — exactly where the winning pocket comes to rest — so it
-    // visibly ends up sitting in the winning pocket. 6 full turns for drama.
-    const ballTarget = ballRotationRef.current - 6 * 360;
+    // The ball orbits counter-clockwise and always rests at the top (a whole number of
+    // turns), i.e. over the winning pocket once the wheel has brought it under the marker.
+    const ballTurns = reduced ? 2 : 8;
+    const ballEnd = ballRotationRef.current - ballTurns * 360;
+    // Where the ball begins its final deceleration (last ~1.6 turns).
+    const ballMid = ballEnd + (reduced ? 0.8 : 1.6) * 360;
 
-    const tl = gsap.timeline({
-      onComplete: () => {
-        // Store the full accumulated rotations — NOT modded — so the next spin
-        // starts from here and keeps moving in the same direction.
-        currentRotationRef.current = targetRotation;
-        ballRotationRef.current = ballTarget;
-        onSettled();
-      },
-    });
-    tl.to(containerRef.current, { rotation: targetRotation, duration: SPIN_DURATION, ease: 'power3.out' }, 0);
-    tl.to(ballArmRef.current, { rotation: ballTarget, duration: SPIN_DURATION, ease: 'power3.out' }, 0);
-    // Ride the rim, then ease inward into the pocket during the final third of the spin.
-    tl.fromTo(
-      ballRef.current,
-      { y: -BALL_RIM_RADIUS },
-      { y: -BALL_REST_RADIUS, duration: SPIN_DURATION, ease: 'power2.in' },
-      0,
-    );
+    const finish = () => {
+      currentRotationRef.current = targetRotation;
+      ballRotationRef.current = ballEnd;
+      onSettled();
+    };
+
+    if (reduced) {
+      const tl = gsap.timeline({ onComplete: finish });
+      tl.to(containerRef.current, { rotation: targetRotation, duration: 0.6, ease: 'power3.out' }, 0)
+        .to(ballArmRef.current, { rotation: ballEnd, duration: 0.6, ease: 'power3.out' }, 0)
+        .fromTo(ballRef.current, { y: -BALL_RIM_RADIUS }, { y: -BALL_REST_RADIUS, duration: 0.6, ease: 'power2.in' }, 0);
+      return;
+    }
+
+    const SPIN = SPIN_DURATION;
+    const dropAt = SPIN - 0.95;
+    const tl = gsap.timeline({ onComplete: finish });
+
+    // Wheel: a single strong deceleration that finishes a touch before the ball.
+    tl.to(containerRef.current, { rotation: targetRotation, duration: SPIN * 0.86, ease: 'power4.out' }, 0);
+
+    // Ball: fast steady orbit, then an independent deceleration to rest — so it keeps
+    // travelling after the wheel has slowed, the way a real ball loses energy last.
+    tl.to(ballArmRef.current, { rotation: ballMid, duration: SPIN * 0.55, ease: 'none' }, 0)
+      .to(ballArmRef.current, { rotation: ballEnd, duration: SPIN * 0.45, ease: 'power3.out' }, SPIN * 0.55);
+
+    // Ball rides the outer track, then drops inward and bounces into the pocket ring.
+    tl.set(ballRef.current, { y: -BALL_RIM_RADIUS }, 0)
+      .to(ballRef.current, { y: -BALL_REST_RADIUS, duration: 0.95, ease: 'bounce.out' }, dropAt);
+
+    // ── Audio ──
+    whirRef.current = sound.whir();
+    tl.call(() => whirRef.current?.stop(1300), [], SPIN * 0.58); // fade the whir as it slows
+    // Rattle ticks that space out as the ball loses energy.
+    let t = dropAt - 0.25;
+    let gap = 0.07;
+    for (let i = 0; i < 7; i++) {
+      tl.call(() => sound.tick(), [], t);
+      t += gap;
+      gap *= 1.3;
+    }
+    tl.call(() => sound.ballDrop(), [], SPIN - 0.08);
   }, { dependencies: [winningPocket] });
 
   return (

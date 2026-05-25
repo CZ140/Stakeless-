@@ -145,7 +145,7 @@ GSAP plugins (MotionPath, CustomEase, CustomBounce) ship inside the installed `g
 
 - [x] **Foundation** — sound engine (`lib/sound.ts`), audio store, juice toolkit (`lib/juice.ts`), reduced-motion hook
 - [x] **Game 1: Slots** — `SlotReel` windowed strips, staggered GSAP stops, near-miss suspense, count-up, tiered confetti. Verified in browser.
-- [ ] **Game 2: Roulette**
+- [x] **Game 2: Roulette** — real ball: fast orbit → independent decel (keeps moving after wheel slows) → bounce drop into pocket, rattle ticks + whir + drop audio, tiered celebrate. Motion verified via transform trace.
 - [ ] **Game 3: Dice**
 - [ ] **Game 4: Crash**
 - [ ] **Game 5: Blackjack**
