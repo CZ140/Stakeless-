@@ -163,6 +163,7 @@ export {
   awardPots,
   POKER,
   POKER_STAKES,
+  POKER_CHAT_MAX_LEN,
 } from './poker.js';
 export type {
   Suit,
@@ -183,6 +184,7 @@ export type {
   PokerHandResultSeat,
   PokerTableSummary,
   PokerInvite,
+  PokerChatMessage,
   PokerStakeId,
 } from './poker.js';
 
