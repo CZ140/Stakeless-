@@ -2254,14 +2254,19 @@ body::before {
   100% { box-shadow: 0 0 0 14px rgba(246,184,93,0); }
 }
 
-/* the chicken + the hazard truck sit at the bottom of a lane */
-.chk-actor { margin-top: auto; margin-bottom: 38px; position: relative; height: 96px; width: 100%; display: flex; align-items: flex-end; justify-content: center; }
-.chk-chicken { position: relative; z-index: 4; display: flex; flex-direction: column; align-items: center; animation: chk-bob 1.4s infinite ease-in-out; }
-.chk-chicken.hit { animation: none; transform: rotate(-14deg); opacity: 0.9; }
+/* the chicken (and, on a death, the truck) float over the road, positioned by an
+   inline `left`; the `left` already points at the lane centre so the bob/slap
+   animations carry the −50% X centring through. */
+.chk-chicken {
+  position: absolute; bottom: 40px; z-index: 6; /* above the curbs (z-index 5) so it shows on the START sidewalk */
+  display: flex; flex-direction: column; align-items: center;
+  transform: translateX(-50%); animation: chk-bob 1.4s infinite ease-in-out;
+}
+.chk-chicken.hit { animation: none; transform: translateX(-50%) rotate(-14deg); opacity: 0.9; z-index: 3; }
 .chk-chicken-shadow { width: 34px; height: 6px; border-radius: 50%; background: radial-gradient(ellipse, rgba(0,0,0,0.55), transparent 65%); margin-top: 2px; }
-@keyframes chk-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
-.chk-truck { position: absolute; bottom: 8px; left: 50%; transform: translateX(-50%); z-index: 3; filter: drop-shadow(0 12px 18px rgba(0,0,0,0.5)); animation: chk-slam 0.32s ease-out; }
-@keyframes chk-slam { 0% { transform: translate(-50%, -120px); opacity: 0; } 70% { transform: translate(-50%, 6px); } 100% { transform: translate(-50%, 0); opacity: 1; } }
+@keyframes chk-bob { 0%, 100% { transform: translate(-50%, 0); } 50% { transform: translate(-50%, -4px); } }
+.chk-truck { position: absolute; bottom: 14px; z-index: 5; transform: translateX(-50%); filter: drop-shadow(0 12px 18px rgba(0,0,0,0.5)); animation: chk-slam 0.34s ease-out; }
+@keyframes chk-slam { 0% { transform: translate(-50%, -150px); opacity: 0; } 75% { transform: translate(-50%, 6px); } 100% { transform: translate(-50%, 0); opacity: 1; } }
 
 /* curbs */
 .chk-curb {

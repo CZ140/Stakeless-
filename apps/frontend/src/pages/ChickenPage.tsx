@@ -1,9 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import gsap from 'gsap';
 import {
+  CHICKEN,
   CHICKEN_DIFFICULTY_IDS,
   CHICKEN_DIFFICULTIES,
-  chickenDeathChance,
+  chickenConfig,
+  chickenHazardRate,
+  chickenNextDeathChance,
   chickenMultiplier,
   chickenMaxLanes,
   type ChickenDifficulty,
@@ -26,9 +29,14 @@ interface ActiveSessionResponse {
   session: null | { sessionId: number; difficulty: ChickenDifficulty; lane: number; multiplier: number; maxLanes: number; betAmount: number };
 }
 
-// Per-difficulty hazard rate as the player-facing "1 in N" the design uses.
+// Lane column / curb widths — kept in sync with the .chk-lane / .chk-curb CSS so
+// the absolutely-positioned chicken lines up with its lane.
+const LANE_W = 94;
+const CURB_W = 38;
+
+// Player-facing hazard rate as the real game shows it: "N in 25".
 function hazardRate(d: ChickenDifficulty): string {
-  return `1 in ${Math.round(1 / chickenDeathChance(d))}`;
+  return `${chickenConfig(d).deadly} in ${CHICKEN.TILES}`;
 }
 
 // ── Dusk skyline backdrop ─────────────────────────────────────────────
@@ -135,12 +143,11 @@ export function ChickenPage() {
   const chickenRef = useRef<HTMLDivElement>(null);
 
   const roadLanes = phase === 'betting' ? chickenMaxLanes(difficulty) : maxLanes;
-  // Display lane (1-based) the chicken currently stands on.
-  const chickenCol = phase === 'betting' ? 1
-    : result?.dead ? (deadLane ?? 0) + 1
-    : phase === 'result' ? Math.max(1, lane)
-    : crossed ? maxLanes
-    : lane + 1;
+  // Which lane the chicken stands on: 0 = the START sidewalk; otherwise the last
+  // lane it crossed (or the fatal lane on a death).
+  const chickenLane = result?.dead ? (deadLane ?? 0) + 1 : lane;
+  // Lane 0 → stand on the START sidewalk (curb), nudged right so it isn't clipped.
+  const chickenLeft = chickenLane === 0 ? CURB_W / 2 + 7 : CURB_W + (chickenLane - 0.5) * LANE_W;
 
   const resume = useCallback(async () => {
     try {
@@ -153,12 +160,13 @@ export function ChickenPage() {
 
   useEffect(() => { void resume(); }, [resume]);
 
-  // Keep the chicken's lane scrolled into view as it advances. (The chicken's
-  // idle bob is a CSS animation; GSAP only owns the death shake + win celebrate.)
+  // Keep the chicken scrolled into view as it advances. (Its idle bob is a CSS
+  // animation; GSAP only owns the death shake + the win celebrate.)
   useEffect(() => {
-    const focus = roadRef.current?.querySelector('.chk-lane.is-chicken');
-    focus?.scrollIntoView({ behavior: prefersReducedMotion() ? 'auto' : 'smooth', inline: 'center', block: 'nearest' });
-  }, [lane, phase, crossed, chickenCol]);
+    const el = roadRef.current;
+    if (!el) return;
+    el.scrollTo({ left: chickenLeft - el.clientWidth / 2, behavior: prefersReducedMotion() ? 'auto' : 'smooth' });
+  }, [chickenLeft]);
 
   // Auto-clear the result back to betting after a short pause.
   useEffect(() => {
@@ -242,6 +250,7 @@ export function ChickenPage() {
   const profit = Math.max(0, Math.floor(betAmount * multiplier) - betAmount);
   const cfg = CHICKEN_DIFFICULTIES[difficulty];
   const nextMultiplier = isActive && !crossed ? chickenMultiplier(difficulty, lane + 1) : null;
+  const nextRisk = isActive && !crossed ? chickenNextDeathChance(difficulty, lane) : null;
   const canStep = isActive && !crossed && !busy;
 
   let primaryLabel = busy ? 'Starting…' : 'Place bet';
@@ -276,7 +285,7 @@ export function ChickenPage() {
         </h1>
         <div className="game-meta-spec">
           <span>{cfg.label.toUpperCase()}</span><span className="dot">·</span>
-          <span>{Math.round(chickenDeathChance(difficulty) * 100)}% / LANE</span><span className="dot">·</span>
+          <span>{Math.round(chickenHazardRate(difficulty) * 100)}% START RISK</span><span className="dot">·</span>
           <span>97% RTP</span>
           <button className="icon-btn" onClick={toggleMute} title={muted ? 'Unmute' : 'Mute'} style={{ fontSize: 14 }}>
             {muted ? '🔇' : '🔊'}
@@ -299,10 +308,9 @@ export function ChickenPage() {
                 const isPast = !isBetting && i <= lane;
                 const isHere = isActive && !crossed && i === lane + 1;
                 const isDead = !!result?.dead && deadLane != null && i === deadLane + 1;
-                const hasChicken = i === chickenCol;
                 const pinCls = 'chk-tile-pin' + (isPast ? ' past' : '') + (isHere ? ' here' : '') + (isDead ? ' dead' : '');
                 return (
-                  <div key={i} className={'chk-lane' + (hasChicken ? ' is-chicken' : '')}>
+                  <div key={i} className="chk-lane">
                     <div className={pinCls}>
                       <span className="chk-mult">{chickenMultiplier(difficulty, i).toFixed(2)}×</span>
                       <span className="chk-lane-no">Lane {i}</span>
@@ -311,15 +319,6 @@ export function ChickenPage() {
                       {isPast && !isDead && <div className="chk-tile-check">✓</div>}
                       {isHere && <div className="chk-tile-pulse" />}
                     </div>
-                    <div className="chk-actor">
-                      {isDead && <div className="chk-truck"><Truck /></div>}
-                      {hasChicken && (
-                        <div className={'chk-chicken' + (isDead ? ' hit' : '')} ref={chickenRef}>
-                          <ChickenSprite />
-                          <div className="chk-chicken-shadow" />
-                        </div>
-                      )}
-                    </div>
                   </div>
                 );
               })}
@@ -327,6 +326,14 @@ export function ChickenPage() {
               <div className="chk-curb chk-curb-r">
                 <div className="chk-curb-label">PAYOUT</div>
                 <div className="chk-curb-coin"><CoinIcon size={18} /></div>
+              </div>
+
+              {/* The chicken (and, on a death, the truck that hit it) float over the
+                  road, positioned by lane so they line up with the lane columns. */}
+              {result?.dead && <div className="chk-truck" style={{ left: chickenLeft }}><Truck /></div>}
+              <div className={'chk-chicken' + (result?.dead ? ' hit' : '')} ref={chickenRef} style={{ left: chickenLeft }}>
+                <ChickenSprite />
+                <div className="chk-chicken-shadow" />
               </div>
             </div>
           </div>
@@ -395,7 +402,9 @@ export function ChickenPage() {
                 onClick={() => { void handleStep(); }}
               >
                 {crossed ? 'Across the road!' : 'Next lane'} <span className="chk-step-arrow">→</span>
-                {nextMultiplier != null && <span className="chk-step-next">{nextMultiplier.toFixed(2)}×</span>}
+                {nextMultiplier != null && nextRisk != null && (
+                  <span className="chk-step-next">{nextMultiplier.toFixed(2)}× · {Math.round(nextRisk * 100)}% risk</span>
+                )}
               </button>
             </div>
           )}

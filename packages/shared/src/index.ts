@@ -82,11 +82,12 @@ export {
 } from './pump.js';
 export type { PumpDifficulty, PumpDifficultyConfig } from './pump.js';
 
-// Chicken ("Chicken Road") — a lane-crossing cash-out ladder. Constant per-lane
-// death chance, geometric multiplier, edge applied once (exact 97% RTP at every
-// cash-out). Difficulty/odds/multiplier math shared by the backend (settlement)
-// and frontend (live readout + per-lane preview). The crypto RNG (the hidden car
-// layout) lives backend-only in services/chickenService.ts. See chicken.ts.
+// Chicken ("Chicken Road") — a lane-crossing cash-out ladder. Hypergeometric
+// (Mines-style) model matching the real game: 25 tiles, `deadly` cars, rising
+// per-lane risk, accelerating multiplier, edge applied once (exact 97% RTP at
+// every cash-out). Difficulty/odds/multiplier math shared by the backend
+// (settlement) and frontend (live readout + per-lane preview). The crypto RNG
+// (the hidden car layout) lives backend-only in services/chickenService.ts.
 export {
   CHICKEN,
   CHICKEN_DIFFICULTIES,
@@ -94,7 +95,8 @@ export {
   isChickenDifficulty,
   chickenConfig,
   chickenMaxLanes,
-  chickenDeathChance,
+  chickenHazardRate,
+  chickenNextDeathChance,
   chickenSurvivalChance,
   chickenMultiplier,
 } from './chicken.js';

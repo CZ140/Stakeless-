@@ -47,7 +47,7 @@ describe('Chicken routes — money path', () => {
     expect(body.difficulty).toBe('medium');
     expect(body.lane).toBe(0);
     expect(body.multiplier).toBe(1);
-    expect(body.maxLanes).toBe(15);
+    expect(body.maxLanes).toBe(22); // medium: 25 tiles − 3 deadly
     expect(await getBalance(user.id)).toBe(900); // stake deducted up front
   });
 
@@ -143,7 +143,7 @@ describe('Chicken routes — money path', () => {
     expect(active.body.session.difficulty).toBe('hard');
     expect(active.body.session.betAmount).toBe(100);
     expect(active.body.session.lane).toBe(0);
-    expect(active.body.session.maxLanes).toBe(12);
+    expect(active.body.session.maxLanes).toBe(20); // hard: 25 tiles − 5 deadly
     // The hidden car layout must never be exposed to the client.
     expect(active.body.session.road).toBeUndefined();
   });
