@@ -27,7 +27,7 @@ export function VaultGameCard({ game, soon = false }: { game: GameCardData; soon
       <div className="meta">
         <div className="name">
           <span>{game.name}</span>
-          {soon ? <span className="soon-label">◆ SOON</span> : <span className="live">● LIVE</span>}
+          {soon ? <span className="soon-label">◆ SOON</span> : <span className="live">LIVE</span>}
         </div>
         <div className="stats">
           {soon ? (
