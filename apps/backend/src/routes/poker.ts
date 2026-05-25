@@ -7,6 +7,7 @@ import { z } from 'zod';
 import { validate } from '../middleware/validate.js';
 import { socialLimiter } from '../middleware/rateLimiter.js';
 import { requireAuth } from '../middleware/requireAuth.js';
+import { io } from '../socket/index.js';
 import { tableManager } from '../services/poker/manager.js';
 
 export const pokerRouter: IRouter = Router();
@@ -28,6 +29,9 @@ function handlePokerError(err: unknown, res: Response): boolean {
     ILLEGAL_ACTION: [400, 'Illegal action'],
     NO_SEAT: [400, 'No such seat'],
     NOT_A_BOT: [400, 'That seat is not a bot'],
+    USER_NOT_FOUND: [404, 'No user with that username'],
+    CANNOT_INVITE_SELF: [400, 'You cannot invite yourself'],
+    NOT_FRIENDS: [403, 'You can only invite friends'],
   };
   if (code && map[code]) {
     const [status, message] = map[code];
@@ -159,6 +163,26 @@ pokerRouter.delete('/tables/:id/bots/:seatIndex', requireAuth, async (req, res) 
   } catch (err) {
     if (handlePokerError(err, res)) return;
     console.error('[poker] remove bot error:', err);
+    res.status(500).json({ error: 'An unexpected error occurred' });
+  }
+});
+
+const inviteSchema = z.object({ username: z.string().trim().min(1).max(50) });
+
+// POST /api/poker/tables/:id/invite { username } — invite a friend to this table
+pokerRouter.post('/tables/:id/invite', socialLimiter, requireAuth, validate(inviteSchema), async (req, res) => {
+  const id = parseId(req.params.id);
+  if (id === null) {
+    res.status(400).json({ error: 'Invalid table id' });
+    return;
+  }
+  try {
+    const { inviteeId, payload } = await tableManager.invite(req.user!.id, id, req.body.username as string);
+    io?.to(`user:${inviteeId}`).emit('poker:invite', payload);
+    res.json({ invited: true });
+  } catch (err) {
+    if (handlePokerError(err, res)) return;
+    console.error('[poker] invite error:', err);
     res.status(500).json({ error: 'An unexpected error occurred' });
   }
 });

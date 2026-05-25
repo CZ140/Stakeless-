@@ -56,9 +56,9 @@ function FriendsList() {
             </div>
           </div>
           <div className="fg-row-actions">
-            <button className="btn btn-outline" disabled style={{ padding: '7px 12px', fontSize: 12 }} title="Available when Poker launches">
-              Invite to table<span className="fg-soon">Poker · soon</span>
-            </button>
+            <Link className="btn btn-outline" to="/games/poker" style={{ padding: '7px 12px', fontSize: 12 }} title="Open a poker table, then invite them from there">
+              Invite to table
+            </Link>
             <button className="btn btn-ghost" style={{ padding: '7px 14px', fontSize: 12 }} onClick={() => remove(f)}>Remove</button>
           </div>
         </div>

@@ -7,6 +7,7 @@
 //   • betting math (legal actions, no-limit min-raise)
 //   • side-pot construction + showdown award
 // Everything here is deterministic and exhaustively unit-tested.
+import type { SocialUser } from './social.js';
 
 // ─── Cards ──────────────────────────────────────────────────────────────────
 // Suit 0..3 = clubs ♣, diamonds ♦, hearts ♥, spades ♠ (suit is irrelevant to
@@ -370,6 +371,13 @@ export interface PokerHandResult {
   showdown: boolean; // false when everyone folded to one player
   seats: PokerHandResultSeat[];
   winners: number[]; // seat indexes that won chips
+}
+
+// A friend's "come join this table" invite — pushed live to the invitee.
+export interface PokerInvite {
+  tableId: number;
+  tableName: string;
+  inviter: SocialUser;
 }
 
 // Lobby row — one available/joinable table.

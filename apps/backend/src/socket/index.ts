@@ -8,6 +8,7 @@ import type {
   PublicTableState,
   PrivateHand,
   PokerHandResult,
+  PokerInvite,
 } from '@gambling/shared';
 import { attachAuthMiddleware } from './authMiddleware.js';
 import { startLeaderboardBroadcast } from './leaderboardBroadcast.js';
@@ -61,6 +62,8 @@ interface ServerToClientEvents {
   'poker:state': (data: { tableId: number; state: PublicTableState }) => void;
   'poker:hand': (data: { tableId: number; hand: PrivateHand }) => void;
   'poker:result': (data: { tableId: number; result: PokerHandResult }) => void;
+  // A friend invited you to a poker table — pushed to your user room.
+  'poker:invite': (data: PokerInvite) => void;
 }
 
 interface ClientToServerEvents {

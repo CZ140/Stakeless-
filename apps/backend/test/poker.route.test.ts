@@ -1,6 +1,8 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import request from 'supertest';
 import { createApp } from '../src/app.js';
+import { db } from '../src/db/index.js';
+import { friendships } from '../src/db/schema.js';
 import { tableManager } from '../src/services/poker/manager.js';
 import { resetDb, createUser, getBalance } from './helpers.js';
 
@@ -8,6 +10,10 @@ const app = createApp();
 
 function auth(method: 'post' | 'get', path: string, token: string) {
   return request(app)[method](path).set('Authorization', `Bearer ${token}`);
+}
+
+async function makeFriends(a: number, b: number): Promise<void> {
+  await db.insert(friendships).values({ requesterId: a, addresseeId: b, status: 'accepted', respondedAt: new Date() });
 }
 
 async function createTable(token: string, body: Record<string, unknown> = {}) {
@@ -135,5 +141,29 @@ describe('Poker routes', () => {
     const leave = await auth('post', `/api/poker/tables/${id}/leave`, a.token).send();
     expect(leave.body.cashedOut).toBe(600);
     expect(await getBalance(a.user.id)).toBe(1000); // fully reclaimed
+  });
+
+  it('invites a friend to the table (friend-gated)', async () => {
+    const a = await createUser({ username: 'alice', balance: 1000 });
+    const b = await createUser({ username: 'bob', balance: 1000 });
+    const stranger = await createUser({ username: 'stranger', balance: 1000 });
+    const id = await createTable(a.token);
+
+    // Must be seated to invite.
+    expect((await auth('post', `/api/poker/tables/${id}/invite`, a.token).send({ username: 'bob' })).status).toBe(403);
+
+    await auth('post', `/api/poker/tables/${id}/sit`, a.token).send({ seatIndex: 0, buyIn: 1000 });
+
+    // Inviting a non-friend is rejected.
+    expect((await auth('post', `/api/poker/tables/${id}/invite`, a.token).send({ username: 'stranger' })).status).toBe(403);
+    // Unknown username → 404.
+    expect((await auth('post', `/api/poker/tables/${id}/invite`, a.token).send({ username: 'nobody' })).status).toBe(404);
+
+    // Friends can be invited.
+    await makeFriends(a.user.id, b.user.id);
+    const ok = await auth('post', `/api/poker/tables/${id}/invite`, a.token).send({ username: 'bob' });
+    expect(ok.status).toBe(200);
+    expect(ok.body.invited).toBe(true);
+    void stranger;
   });
 });

@@ -9,6 +9,8 @@ import { socket } from '../socket';
 import { sound } from '../lib/sound';
 import { useAuth } from '../contexts/AuthContext';
 import { usePokerStore } from '../stores/pokerStore';
+import { useFriendsStore } from '../stores/friendsStore';
+import { XIcon } from '../components/vault/icons';
 import { legalActions, type PublicTableState, type PrivateHand, type PokerHandResult, type PublicSeat } from '@gambling/shared';
 
 // Fixed seat anchors around the felt (percent of the table box). Seat 0 sits at
@@ -33,6 +35,7 @@ export function PokerTablePage() {
   const lastResult = usePokerStore((s) => s.lastResult);
 
   const [buyInSeat, setBuyInSeat] = useState<number | null>(null);
+  const [inviting, setInviting] = useState(false);
   const [now, setNow] = useState(Date.now());
   const prevStreetCards = useRef(0);
 
@@ -152,7 +155,12 @@ export function PokerTablePage() {
           <h1 className="h-title">{table.name}</h1>
           <p className="h-subtitle fg-mono">{table.smallBlind}/{table.bigBlind} · hand #{table.handNumber} · {table.street}</p>
         </div>
-        {iAmSeated && <button className="btn btn-ghost" onClick={leave}>Leave table</button>}
+        {iAmSeated && (
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button className="btn btn-outline" onClick={() => setInviting(true)}>+ Invite</button>
+            <button className="btn btn-ghost" onClick={leave}>Leave table</button>
+          </div>
+        )}
       </div>
 
       <div className="pkr-felt">
@@ -214,7 +222,67 @@ export function PokerTablePage() {
       {buyInSeat !== null && (
         <BuyInModal table={table} seatIndex={buyInSeat} onClose={() => setBuyInSeat(null)} tableId={tableId} />
       )}
+      {inviting && <InviteModal table={table} tableId={tableId} onClose={() => setInviting(false)} />}
     </AppShell>
+  );
+}
+
+function InviteModal({ table, tableId, onClose }: { table: PublicTableState; tableId: number; onClose: () => void }) {
+  const friends = useFriendsStore((s) => s.friends);
+  const [invited, setInvited] = useState<Set<number>>(new Set());
+  // Friends already seated here can't be invited again.
+  const seatedNames = new Set(table.seats.filter((s) => s.username).map((s) => s.username));
+
+  async function invite(userId: number, username: string) {
+    setInvited((s) => new Set(s).add(userId));
+    try {
+      await apiClient.post(`/poker/tables/${tableId}/invite`, { username });
+      toast.success(`Invited ${username}`);
+    } catch (e) {
+      setInvited((s) => {
+        const n = new Set(s);
+        n.delete(userId);
+        return n;
+      });
+      const ax = e as { response?: { data?: { error?: string } } };
+      toast.error(ax.response?.data?.error ?? 'Could not invite');
+    }
+  }
+
+  return (
+    <div className="fg-modal-shade" onClick={onClose}>
+      <div className="fg-modal" onClick={(e) => e.stopPropagation()}>
+        <div className="fg-modal-head">
+          <div>
+            <div className="section-title">Invite friends to {table.name}</div>
+            <div className="h-subtitle" style={{ marginTop: 6, fontSize: 13 }}>
+              Only friends can be invited. <Link className="fg-link" to="/friends" onClick={onClose}>Add more friends →</Link>
+            </div>
+          </div>
+          <button className="fg-icon-btn" onClick={onClose} aria-label="Close"><XIcon size={14} /></button>
+        </div>
+        <div className="fg-picker-list" style={{ maxHeight: 320 }}>
+          {friends.length === 0 && <div className="fg-picker-empty">No friends yet — add some on the Friends page.</div>}
+          {friends.map((f) => {
+            const here = seatedNames.has(f.username);
+            const sent = invited.has(f.userId);
+            return (
+              <div className="fg-picker-row" key={f.userId}>
+                <Avatar username={f.username} avatarColor={f.avatarColor} avatarImage={f.avatarImage} className="fg-ava s30" />
+                <div className="fg-picker-meta"><div className="fg-picker-name">{f.username}</div></div>
+                {here ? (
+                  <span className="tag fg-picker-tag">At table</span>
+                ) : sent ? (
+                  <span className="tag fg-picker-tag">Invited</span>
+                ) : (
+                  <button className="btn btn-primary" style={{ padding: '6px 14px', fontSize: 12 }} onClick={() => invite(f.userId, f.username)}>Invite</button>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
   );
 }
 

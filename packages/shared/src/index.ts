@@ -182,6 +182,7 @@ export type {
   PokerHandResult,
   PokerHandResultSeat,
   PokerTableSummary,
+  PokerInvite,
   PokerStakeId,
 } from './poker.js';
 

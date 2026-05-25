@@ -8,8 +8,9 @@ import { db } from '../../db/index.js';
 import { users, pokerTables, pokerSeats, groupMembers } from '../../db/schema.js';
 import { PokerTable } from './table.js';
 import { decideBotAction, BOT_NAMES } from './bot.js';
+import { areFriends } from '../friendService.js';
 import { POKER } from '@gambling/shared';
-import type { PokerAction, PublicTableState, PrivateHand, PokerTableSummary } from '@gambling/shared';
+import type { PokerAction, PublicTableState, PrivateHand, PokerTableSummary, PokerInvite } from '@gambling/shared';
 
 function err(code: string, message: string): Error {
   return Object.assign(new Error(message), { code });
@@ -317,6 +318,34 @@ class TableManager {
       eng.removeSeat(seatIndex);
       this.hooks.onStateChange?.(tableId);
     }
+  }
+
+  // Invite a friend to this table (friend-gated, mirroring group invites). The
+  // inviter must be seated; the invitee must be an accepted friend and not already
+  // here. Returns the payload for the route to push to the invitee's user room.
+  async invite(inviterId: number, tableId: number, inviteeUsername: string): Promise<{ inviteeId: number; payload: PokerInvite }> {
+    const eng = await this.loadEngine(tableId);
+    if (!eng.seatOfUser(inviterId)) throw err('NOT_SEATED', 'Sit down before inviting');
+    const [invitee] = await db
+      .select({ id: users.id })
+      .from(users)
+      .where(sql`lower(${users.username}) = lower(${inviteeUsername})`);
+    if (!invitee) throw err('USER_NOT_FOUND', 'No user with that username');
+    if (invitee.id === inviterId) throw err('CANNOT_INVITE_SELF', 'You cannot invite yourself');
+    if (!(await areFriends(inviterId, invitee.id))) throw err('NOT_FRIENDS', 'You can only invite friends');
+    if (eng.seatOfUser(invitee.id)) throw err('ALREADY_SEATED', 'They are already at this table');
+    const [inviter] = await db
+      .select({ id: users.id, username: users.username, avatarColor: users.avatarColor, avatarImage: users.avatarImage, tierLevel: users.tierLevel })
+      .from(users)
+      .where(eq(users.id, inviterId));
+    return {
+      inviteeId: invitee.id,
+      payload: {
+        tableId,
+        tableName: eng.config.name,
+        inviter: { userId: inviter!.id, username: inviter!.username, avatarColor: inviter!.avatarColor, avatarImage: inviter!.avatarImage, tierLevel: inviter!.tierLevel },
+      },
+    };
   }
 
   private maybeStartHand(tableId: number, eng: PokerTable): void {

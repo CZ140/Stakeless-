@@ -1,11 +1,12 @@
 import { useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { socket } from '../socket';
 import { apiClient } from '../api/client';
 import { useAuth } from '../contexts/AuthContext';
 import { useFriendsStore } from '../stores/friendsStore';
 import { useGroupsStore } from '../stores/groupsStore';
-import type { FriendDTO, FriendRequestDTO, GroupInviteDTO } from '@gambling/shared';
+import type { FriendDTO, FriendRequestDTO, GroupInviteDTO, PokerInvite } from '@gambling/shared';
 
 // Mounted once in AppShell. Seeds the friend-request / group-invite counts used
 // by the sidebar badges on app load, and keeps them live via socket events
@@ -13,6 +14,7 @@ import type { FriendDTO, FriendRequestDTO, GroupInviteDTO } from '@gambling/shar
 // The socket itself is connected/disconnected by AuthContext.
 export function useSocial(): void {
   const { accessToken } = useAuth();
+  const navigate = useNavigate();
 
   useEffect(() => {
     if (!accessToken) {
@@ -53,14 +55,21 @@ export function useSocial(): void {
       useGroupsStore.getState().addInvite(invite);
       toast(`${invite.inviter.username} invited you to ${invite.group.name}`);
     }
+    function onPokerInvite(invite: PokerInvite) {
+      toast(`${invite.inviter.username} invited you to poker · ${invite.tableName}`, {
+        action: { label: 'Join', onClick: () => navigate(`/games/poker/${invite.tableId}`) },
+      });
+    }
 
     socket.on('friend:request', onFriendRequest);
     socket.on('friend:accepted', onFriendAccepted);
     socket.on('group:invite', onGroupInvite);
+    socket.on('poker:invite', onPokerInvite);
     return () => {
       socket.off('friend:request', onFriendRequest);
       socket.off('friend:accepted', onFriendAccepted);
       socket.off('group:invite', onGroupInvite);
+      socket.off('poker:invite', onPokerInvite);
     };
-  }, [accessToken]);
+  }, [accessToken, navigate]);
 }
