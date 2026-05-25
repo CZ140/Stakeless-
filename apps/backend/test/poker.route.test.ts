@@ -143,6 +143,35 @@ describe('Poker routes', () => {
     expect(await getBalance(a.user.id)).toBe(1000); // fully reclaimed
   });
 
+  it('refunds every parked seat stack to balance on crash-recovery boot', async () => {
+    const a = await createUser({ username: 'alice', balance: 1000 });
+    const b = await createUser({ username: 'bob', balance: 1000 });
+    const id = await createTable(a.token);
+    const id2 = await createTable(a.token); // alice also holds a seat at a 2nd table
+
+    await auth('post', `/api/poker/tables/${id}/sit`, a.token).send({ seatIndex: 0, buyIn: 600 });
+    await auth('post', `/api/poker/tables/${id}/sit`, b.token).send({ seatIndex: 1, buyIn: 1000 });
+    await auth('post', `/api/poker/tables/${id2}/sit`, a.token).send({ seatIndex: 0, buyIn: 400 });
+    // Chips are parked in seats, deducted from balances.
+    expect(await getBalance(a.user.id)).toBe(0); // 1000 - 600 - 400
+    expect(await getBalance(b.user.id)).toBe(0); // 1000 - 1000
+
+    // Simulate a restart: engines drop and boot reconciliation runs.
+    tableManager._resetAll();
+    const result = await tableManager.refundAllSeats();
+    expect(result.seats).toBe(3);
+    expect(result.chips).toBe(2000);
+
+    // Stacks (incl. alice's two seats summed) are back in balances; no seats remain.
+    expect(await getBalance(a.user.id)).toBe(1000);
+    expect(await getBalance(b.user.id)).toBe(1000);
+    const lobby = await auth('get', '/api/poker/tables', a.token);
+    for (const t of lobby.body.tables) expect(t.seatedHumans).toBe(0);
+
+    // Idempotent: a second pass is a no-op.
+    expect((await tableManager.refundAllSeats()).seats).toBe(0);
+  });
+
   it('invites a friend to the table (friend-gated)', async () => {
     const a = await createUser({ username: 'alice', balance: 1000 });
     const b = await createUser({ username: 'bob', balance: 1000 });

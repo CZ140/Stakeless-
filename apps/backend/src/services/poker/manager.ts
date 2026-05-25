@@ -220,6 +220,32 @@ class TableManager {
     });
   }
 
+  // ─── Crash recovery ──────────────────────────────────────────────────────────
+  // Called ONCE on server boot. Live hands are in-memory only, so a restart
+  // abandons them; this returns every parked seat stack to its owner's balance and
+  // clears the seats so no coins are stranded. Since the persisted stack is the
+  // pre-hand snapshot, an abandoned mid-hand pot is effectively refunded too.
+  // Tables (lobby config) survive — players just re-sit. Idempotent (no-op when no
+  // seats exist) and run in one transaction so a partial refund can't occur.
+  async refundAllSeats(): Promise<{ seats: number; chips: number }> {
+    return db.transaction(async (tx) => {
+      const seats = await tx
+        .select({ userId: pokerSeats.userId, stack: pokerSeats.stack })
+        .from(pokerSeats);
+      if (seats.length === 0) return { seats: 0, chips: 0 };
+      // Sum by user — a player can hold a seat at more than one table.
+      const byUser = new Map<number, number>();
+      for (const s of seats) byUser.set(s.userId, (byUser.get(s.userId) ?? 0) + s.stack);
+      for (const [userId, amount] of byUser) {
+        await tx.update(users).set({ balance: sql`${users.balance} + ${amount}` }).where(eq(users.id, userId));
+      }
+      await tx.delete(pokerSeats);
+      const chips = seats.reduce((sum, s) => sum + s.stack, 0);
+      this.engines.clear();
+      return { seats: seats.length, chips };
+    });
+  }
+
   // ─── Actions ────────────────────────────────────────────────────────────────
   async act(userId: number, tableId: number, action: PokerAction): Promise<void> {
     const eng = await this.loadEngine(tableId);
