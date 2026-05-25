@@ -317,6 +317,7 @@ class TableManager {
     if (!seat || !seat.isBot) return false;
     const legal = eng.legalFor(seat.seatIndex);
     const pot = eng.toPublicState().totalPot;
+    const activePlayers = eng.occupiedSeats().filter((x) => x.inHand && x.status !== 'folded').length;
     const action = decideBotAction({
       holeCards: seat.holeCards,
       board: eng.board,
@@ -327,6 +328,7 @@ class TableManager {
       committedThisStreet: seat.committedThisStreet,
       bigBlind: eng.config.bigBlind,
       stack: seat.stack,
+      activePlayers,
     });
     eng.applyAction(seat.seatIndex, action);
     await this.afterAction(tableId, eng);
