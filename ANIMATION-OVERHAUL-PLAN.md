@@ -143,8 +143,8 @@ GSAP plugins (MotionPath, CustomEase, CustomBounce) ship inside the installed `g
 
 ## 7. Status
 
-- [ ] **Foundation** — sound engine, audio store, juice toolkit, reduced-motion hook
-- [ ] **Game 1: Slots**
+- [x] **Foundation** — sound engine (`lib/sound.ts`), audio store, juice toolkit (`lib/juice.ts`), reduced-motion hook
+- [x] **Game 1: Slots** — `SlotReel` windowed strips, staggered GSAP stops, near-miss suspense, count-up, tiered confetti. Verified in browser.
 - [ ] **Game 2: Roulette**
 - [ ] **Game 3: Dice**
 - [ ] **Game 4: Crash**

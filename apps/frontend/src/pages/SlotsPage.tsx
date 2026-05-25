@@ -1,21 +1,19 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import {
-  PAYLINES,
-  SLOT_SYMBOLS,
-  type SlotGrid,
-  type SlotSymbolId,
-  type SlotLineWin,
-} from '@gambling/shared';
+import { PAYLINES, SLOT_SYMBOLS, type SlotGrid, type SlotSymbolId } from '@gambling/shared';
 import { AppShell } from '../components/vault/AppShell';
 import { BetPanel } from '../components/vault/BetPanel';
+import { SlotReel, type SlotReelHandle } from '../components/vault/SlotReel';
 import { useSlotsStore } from '../stores/slotsStore';
 import { useBalanceStore } from '../stores/balanceStore';
-import { useGameSounds } from '../hooks/useGameSounds';
+import { useAudioStore } from '../stores/audioStore';
+import { sound, type SoundHandle } from '../lib/sound';
+import { celebrate, countUp, winTier } from '../lib/juice';
+import { prefersReducedMotion } from '../hooks/useReducedMotion';
 import { apiClient } from '../api/client';
 
 interface SlotsResponse {
   grid: SlotGrid;
-  lines: SlotLineWin[];
+  lines: { line: number; symbol: SlotSymbolId; count: 2 | 3; multiplier: number; payout: number }[];
   totalPayout: number;
   win: boolean;
   profit: number;
@@ -31,19 +29,12 @@ const GLYPH: Record<SlotSymbolId, string> = {
   diamond: '💎',
 };
 
-const IDS: SlotSymbolId[] = SLOT_SYMBOLS.map((s) => s.id);
-const randSym = (): SlotSymbolId => IDS[Math.floor(Math.random() * IDS.length)]!;
-const randReel = (): SlotSymbolId[] => [randSym(), randSym(), randSym()];
-
-// A pleasant, non-winning arrangement shown before the first spin.
+// A pleasant, non-winning arrangement shown before the first spin (column-major).
 const INITIAL_GRID: SlotGrid = [
   ['cherry', 'seven', 'bell'],
   ['lemon', 'diamond', 'star'],
   ['star', 'bell', 'cherry'],
 ];
-
-// Stagger (ms after the response) at which each reel locks to its final symbols.
-const REEL_STOP = [260, 520, 820];
 
 function Glyph({ id }: { id: SlotSymbolId }) {
   if (id === 'seven') return <span className="seven">7</span>;
@@ -51,107 +42,93 @@ function Glyph({ id }: { id: SlotSymbolId }) {
 }
 
 export function SlotsPage() {
-  const { betAmount, isMuted, spinning, lastResult, setBetAmount, toggleMute, setSpinning, setLastResult } =
-    useSlotsStore();
-  const { playWin, playLoss } = useGameSounds(isMuted);
+  const { betAmount, spinning, lastResult, setBetAmount, setSpinning, setLastResult } = useSlotsStore();
+  const { muted, toggleMute } = useAudioStore();
   const balance = useBalanceStore((s) => s.balance);
   const [error, setError] = useState<string | null>(null);
 
-  // Visible grid (scrambles during a spin), and which reels have locked.
-  const [display, setDisplay] = useState<SlotGrid>(INITIAL_GRID);
-  const [reelStopped, setReelStopped] = useState<boolean[]>([true, true, true]);
+  const r0 = useRef<SlotReelHandle>(null);
+  const r1 = useRef<SlotReelHandle>(null);
+  const r2 = useRef<SlotReelHandle>(null);
+  const reelRefs = useMemo(() => [r0, r1, r2], []);
+  const gridRef = useRef<HTMLDivElement>(null);
+  const payoutRef = useRef<HTMLSpanElement>(null);
+  const spinSoundRef = useRef<SoundHandle | null>(null);
 
-  const stoppedRef = useRef<boolean[]>([true, true, true]); // read by the scramble tick
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const timeoutsRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+  // Tear down a running whir if we leave mid-spin.
+  useEffect(() => () => spinSoundRef.current?.stop(0), []);
 
-  // Tear down timers if we leave mid-spin.
-  useEffect(
-    () => () => {
-      if (intervalRef.current) clearInterval(intervalRef.current);
-      timeoutsRef.current.forEach(clearTimeout);
-    },
-    [],
-  );
-
-  // Cells that sit on a winning line (only the matched portion: 2 or 3 from left).
-  const winningCells = useMemo(() => {
-    const set = new Set<string>();
+  // Rows (0..2) per reel that sit on a winning line — only once the reels have stopped.
+  const winRowsByReel = useMemo(() => {
+    const rows: number[][] = [[], [], []];
     if (lastResult && !spinning) {
       for (const w of lastResult.lines) {
         const pl = PAYLINES.find((p) => p.id === w.line);
-        pl?.cells.slice(0, w.count).forEach(([reel, row]) => set.add(`${reel}-${row}`));
+        pl?.cells.slice(0, w.count).forEach(([reel, row]) => rows[reel]!.push(row));
       }
     }
-    return set;
+    return rows;
   }, [lastResult, spinning]);
 
-  function stopAllTimers() {
-    if (intervalRef.current) {
-      clearInterval(intervalRef.current);
-      intervalRef.current = null;
-    }
-    timeoutsRef.current.forEach(clearTimeout);
-    timeoutsRef.current = [];
-  }
+  // Count up the payout once the win banner is on screen.
+  useEffect(() => {
+    if (!lastResult || spinning || !lastResult.win || !payoutRef.current) return;
+    countUp(payoutRef.current, 0, lastResult.totalPayout);
+  }, [lastResult, spinning]);
 
   async function handleSpin() {
     if (spinning) return;
+    sound.unlock();
     setError(null);
     setSpinning(true);
     setLastResult(null);
     localStorage.setItem('lastBet_slots', String(betAmount));
-
-    // Begin the visual scramble — the tick only randomises reels that haven't locked.
-    stopAllTimers();
-    stoppedRef.current = [false, false, false];
-    setReelStopped([false, false, false]);
-    intervalRef.current = setInterval(() => {
-      setDisplay((prev) => prev.map((reel, i) => (stoppedRef.current[i] ? reel : randReel())));
-    }, 70);
+    sound.bet();
 
     try {
       const res = await apiClient.post<SlotsResponse>('/games/slots/bet', { betAmount });
       const d = res.data;
       useBalanceStore.getState().setBalance(d.newBalance);
+      const reduced = prefersReducedMotion();
 
-      const lockReel = (i: number) => {
-        stoppedRef.current[i] = true;
-        setReelStopped((prev) => {
-          const n = [...prev];
-          n[i] = true;
-          return n;
+      // Near-miss tension: reels 0 & 1 already share a symbol on some payline.
+      const suspense =
+        !reduced &&
+        PAYLINES.some((pl) => d.grid[0]![pl.cells[0]![1]] === d.grid[1]![pl.cells[1]![1]]);
+
+      spinSoundRef.current = sound.reelSpin();
+
+      const reveal = () => {
+        spinSoundRef.current?.stop();
+        spinSoundRef.current = null;
+        setLastResult({
+          grid: d.grid,
+          lines: d.lines,
+          totalPayout: d.totalPayout,
+          win: d.win,
+          profit: d.profit,
         });
-        setDisplay((prev) => {
-          const n = prev.map((r) => [...r]);
-          n[i] = d.grid[i]!;
-          return n;
-        });
+        setSpinning(false);
+        if (d.win) {
+          celebrate(winTier(d.profit, betAmount), { shakeEl: gridRef.current, originEl: gridRef.current });
+        } else {
+          celebrate('none');
+        }
       };
 
-      // Lock reels left → right, then reveal the outcome.
-      REEL_STOP.forEach((ms, i) => {
-        timeoutsRef.current.push(setTimeout(() => lockReel(i), ms));
-      });
-      timeoutsRef.current.push(
-        setTimeout(() => {
-          stopAllTimers();
-          setLastResult({
-            grid: d.grid,
-            lines: d.lines,
-            totalPayout: d.totalPayout,
-            win: d.win,
-            profit: d.profit,
-          });
-          setSpinning(false);
-          if (d.win) playWin();
-          else playLoss();
-        }, REEL_STOP[REEL_STOP.length - 1]! + 140),
-      );
+      for (let i = 0; i < 3; i++) {
+        const isLast = i === 2;
+        reelRefs[i]!.current?.spin(d.grid[i]!, {
+          durationS: reduced ? 0.04 : 0.7 + i * 0.32,
+          pitch: 1 + i * 0.12,
+          suspense: isLast && suspense,
+          onStop: isLast ? reveal : undefined,
+        });
+      }
     } catch (err: unknown) {
-      stopAllTimers();
-      stoppedRef.current = [true, true, true];
-      setReelStopped([true, true, true]);
+      spinSoundRef.current?.stop(0);
+      spinSoundRef.current = null;
+      sound.error();
       const ax = err as { response?: { data?: { error?: string }; status?: number } };
       if (ax.response?.status === 402) setError('Insufficient funds.');
       else if (ax.response?.status === 429) setError('Too many spins too fast — slow down.');
@@ -160,19 +137,14 @@ export function SlotsPage() {
     }
   }
 
-  // Result banner: the amount returned (slot convention) plus the true net.
-  let bannerText = 'SPIN TO PLAY';
+  // Banner state.
   let bannerColor = 'var(--text-muted)';
   let netLine: string | null = null;
-  if (spinning) {
-    bannerText = 'SPINNING…';
-  } else if (lastResult) {
+  if (lastResult && !spinning) {
     if (lastResult.win) {
-      bannerText = `WON ${lastResult.totalPayout.toLocaleString()}`;
       bannerColor = lastResult.profit > 0 ? 'var(--win)' : 'var(--gold)';
       netLine = `${lastResult.lines.length} line${lastResult.lines.length > 1 ? 's' : ''} · net ${lastResult.profit >= 0 ? '+' : ''}${lastResult.profit.toLocaleString()}`;
     } else {
-      bannerText = 'NO WIN';
       bannerColor = 'var(--loss)';
       netLine = `net ${lastResult.profit.toLocaleString()}`;
     }
@@ -196,10 +168,10 @@ export function SlotsPage() {
           <button
             className="icon-btn"
             onClick={toggleMute}
-            title={isMuted ? 'Unmute' : 'Mute'}
+            title={muted ? 'Unmute' : 'Mute'}
             style={{ fontSize: 14 }}
           >
-            {isMuted ? '🔇' : '🔊'}
+            {muted ? '🔇' : '🔊'}
           </button>
         </div>
       </div>
@@ -214,22 +186,25 @@ export function SlotsPage() {
         <div className="game-stage">
           <div className="slots-stage">
             <div className="slots-banner" style={{ color: bannerColor }}>
-              {bannerText}
+              {spinning ? (
+                'SPINNING…'
+              ) : lastResult ? (
+                lastResult.win ? (
+                  <>
+                    WON <span ref={payoutRef}>{lastResult.totalPayout.toLocaleString()}</span>
+                  </>
+                ) : (
+                  'NO WIN'
+                )
+              ) : (
+                'SPIN TO PLAY'
+              )}
               {netLine && <div className="slots-net">{netLine}</div>}
             </div>
 
-            <div className="slots-grid">
-              {display.map((reel, r) => (
-                <div className={`slots-reel${reelStopped[r] ? '' : ' spinning'}`} key={r}>
-                  {reel.map((sym, row) => (
-                    <div
-                      key={row}
-                      className={`slots-cell${reelStopped[r] ? '' : ' spinning'}${winningCells.has(`${r}-${row}`) ? ' win' : ''}`}
-                    >
-                      <Glyph id={sym} />
-                    </div>
-                  ))}
-                </div>
+            <div className="slots-grid" ref={gridRef}>
+              {reelRefs.map((reelRef, i) => (
+                <SlotReel key={i} ref={reelRef} initial={INITIAL_GRID[i]!} winRows={winRowsByReel[i]} />
               ))}
             </div>
 

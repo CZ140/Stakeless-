@@ -2024,22 +2024,34 @@ body::before {
   font-size: 12px; font-weight: 600; letter-spacing: 0.10em;
   color: var(--text-muted); margin-top: 6px;
 }
+/* --slot-cell / --slot-gap MUST match CELL/GAP in SlotReel.tsx so the strip lands aligned. */
 .slots-grid {
-  display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;
+  --slot-cell: 84px; --slot-gap: 8px;
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--slot-gap);
   width: 100%; max-width: 420px; padding: 14px;
   background: linear-gradient(180deg, rgba(212,168,87,0.10), transparent 70%);
   border: 1px solid var(--border-strong); border-radius: var(--r-lg);
   box-shadow: inset 0 1px 0 rgba(255,255,255,0.04), 0 10px 30px rgba(0,0,0,0.35);
 }
-.slots-reel { display: grid; grid-template-rows: repeat(3, 1fr); gap: 10px; }
+/* Each reel is a clipped window onto a tall, GSAP-translated strip of cells. */
+.slots-reel-window {
+  height: calc(3 * var(--slot-cell) + 2 * var(--slot-gap));
+  overflow: hidden; position: relative; border-radius: var(--r-md);
+}
+.slots-strip {
+  display: flex; flex-direction: column; gap: var(--slot-gap);
+  will-change: transform;
+}
 .slots-cell {
-  aspect-ratio: 1; display: grid; place-items: center;
+  height: var(--slot-cell); flex: 0 0 var(--slot-cell);
+  display: grid; place-items: center;
   background: var(--bg-inset); border: 1px solid var(--border);
   border-radius: var(--r-md); font-size: 40px; line-height: 1;
   box-shadow: var(--inset-shadow); user-select: none;
   transition: box-shadow 0.2s, border-color 0.2s, background 0.2s;
 }
-.slots-cell.spinning { filter: blur(1.4px); opacity: 0.8; }
+/* Motion blur while the strip is travelling. */
+.slots-strip.is-spinning .slots-cell { filter: blur(3px); opacity: 0.85; }
 .slots-cell.win {
   border-color: var(--accent);
   background: var(--accent-soft);
@@ -2049,6 +2061,9 @@ body::before {
 @keyframes slots-pulse {
   0%, 100% { box-shadow: 0 0 0 1px var(--accent), 0 0 12px var(--accent-glow); }
   50% { box-shadow: 0 0 0 1px var(--accent), 0 0 24px var(--accent-glow); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .slots-strip.is-spinning .slots-cell { filter: none; opacity: 1; }
 }
 .slots-cell .seven {
   font-family: var(--font-mono, monospace); font-weight: 800; font-size: 34px; color: var(--gold);

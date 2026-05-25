@@ -8,6 +8,17 @@ import { TierUpModal } from './components/vault/TierUpModal';
 import App from './App.tsx';
 import { apiClient } from './api/client';
 import { useBalanceStore } from './stores/balanceStore';
+import { sound } from './lib/sound';
+
+// Satisfy the browser autoplay policy: unlock the audio engine on the first real
+// user gesture, then stop listening.
+const unlockAudio = () => {
+  sound.unlock();
+  window.removeEventListener('pointerdown', unlockAudio);
+  window.removeEventListener('keydown', unlockAudio);
+};
+window.addEventListener('pointerdown', unlockAudio);
+window.addEventListener('keydown', unlockAudio);
 
 // Dev-only console helper: window.__devAddBalance(amount?)
 if (import.meta.env.DEV) {
