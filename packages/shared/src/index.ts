@@ -100,6 +100,21 @@ export {
 } from './chicken.js';
 export type { ChickenDifficulty, ChickenDifficultyConfig } from './chicken.js';
 
+// Rock-Paper-Scissors — a single instant-settle round vs a uniform-random house.
+// Win pays 1.91× (= 3·RTP − 1), a tie pushes, a loss loses ⇒ exact 97% RTP.
+// Outcome/payout math shared by the backend (settlement) and frontend (readout).
+// The crypto RNG (throwRps) lives backend-only in services/rpsService.ts.
+export {
+  RPS,
+  RPS_CHOICES,
+  isRpsChoice,
+  rpsBeats,
+  rpsOutcome,
+  rpsWinMultiplier,
+  rpsPayoutMultiplier,
+} from './rps.js';
+export type { RpsChoice, RpsOutcome } from './rps.js';
+
 export interface ApiResponse<T = unknown> {
   success: boolean;
   data?: T;
@@ -112,7 +127,7 @@ export interface HealthResponse {
 }
 
 // Game types (stubs for future phases)
-export type GameType = 'roulette' | 'plinko' | 'mines' | 'blackjack' | 'dice' | 'slots' | 'crash' | 'flip' | 'hilo' | 'pump' | 'chicken';
+export type GameType = 'roulette' | 'plinko' | 'mines' | 'blackjack' | 'dice' | 'slots' | 'crash' | 'flip' | 'hilo' | 'pump' | 'chicken' | 'rps';
 
 // ─── Dice ─────────────────────────────────────────────────────────────────────
 // Pure dice math shared by the backend (settlement) and frontend (live readout)

@@ -11,6 +11,7 @@ import { resolvePlinko, rollPlinkoBucket } from '../services/plinkoService.js';
 import { rollDice, resolveDice } from '../services/diceService.js';
 import { spinGrid } from '../services/slotsService.js';
 import { flipCoin, resolveCoinflip } from '../services/coinflipService.js';
+import { throwRps, resolveRps } from '../services/rpsService.js';
 import { initialHiloState, applyHiloGuess, type HiloSessionState } from '../services/hiloService.js';
 import { initialPumpState, applyPump, type PumpSessionState } from '../services/pumpService.js';
 import { initialChickenState, applyStep, type ChickenSessionState } from '../services/chickenService.js';
@@ -24,6 +25,7 @@ import {
   pumpMaxPumps,
   isChickenDifficulty,
   chickenMaxLanes,
+  isRpsChoice,
   CRASH,
 } from '@gambling/shared';
 import {
@@ -325,6 +327,53 @@ gamesRouter.post('/flip/bet', gameLimiter, clickInterval, requireAuth, async (re
     if (code === 'INSUFFICIENT_FUNDS') { res.status(402).json({ error: 'Insufficient funds' }); return; }
     if (code === 'BET_TOO_SMALL') { res.status(400).json({ error: 'Bet amount too small' }); return; }
     console.error('[games] coinflip bet error:', err);
+    res.status(500).json({ error: 'An unexpected error occurred' });
+  }
+});
+
+// ─── Rock-Paper-Scissors routes ──────────────────────────────────────────────
+
+const rpsBetSchema = z.object({
+  betAmount: z.number().int().min(1).max(1_000_000),
+  choice: z.enum(['rock', 'paper', 'scissors']),
+});
+
+// POST /api/games/rps/bet
+// Pipeline: validate → deductBet → crypto house throw → resolveRps → settleBet →
+// emit → tier reconcile. Instant-settle (no session). The house throws uniformly
+// at random, so win/tie/loss are each ⅓; a win pays 1.91×, a tie pushes (stake
+// returned), giving RTP 97%. Returns 200 { choice, house, outcome, multiplier,
+// profit, newBalance }. Returns 400 on invalid input, 402 on INSUFFICIENT_FUNDS.
+gamesRouter.post('/rps/bet', gameLimiter, clickInterval, requireAuth, async (req, res) => {
+  const parsed = rpsBetSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.issues[0]?.message ?? 'Invalid request' });
+    return;
+  }
+  const userId = req.user!.id;
+  const { betAmount, choice } = parsed.data;
+  if (!isRpsChoice(choice)) {
+    res.status(400).json({ error: 'Invalid choice' });
+    return;
+  }
+
+  try {
+    await deductBet(userId, betAmount, 'rps');
+    const house = throwRps();
+    const { outcome, multiplier } = resolveRps(house, choice);
+    // Gross payout (stake + winnings): win pays floor(bet × 1.91), a tie returns
+    // the stake (push), a loss pays nothing.
+    const grossPayout =
+      outcome === 'win' ? Math.floor(betAmount * multiplier) : outcome === 'tie' ? betAmount : 0;
+    const { newBalance } = await settleBet(userId, grossPayout, betAmount, `${choice}_${house}`, 'rps');
+    io?.to(`user:${userId}`).emit('balance:update', { balance: newBalance });
+    await applyTierUp(userId);
+    res.json({ choice, house, outcome, multiplier, profit: grossPayout - betAmount, newBalance });
+  } catch (err: unknown) {
+    const code = (err as { code?: string }).code;
+    if (code === 'INSUFFICIENT_FUNDS') { res.status(402).json({ error: 'Insufficient funds' }); return; }
+    if (code === 'BET_TOO_SMALL') { res.status(400).json({ error: 'Bet amount too small' }); return; }
+    console.error('[games] rps bet error:', err);
     res.status(500).json({ error: 'An unexpected error occurred' });
   }
 });

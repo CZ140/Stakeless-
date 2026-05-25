@@ -13,6 +13,7 @@ import { CoinflipPage } from './pages/CoinflipPage';
 import { HiloPage } from './pages/HiloPage';
 import { PumpPage } from './pages/PumpPage';
 import { ChickenPage } from './pages/ChickenPage';
+import { RpsPage } from './pages/RpsPage';
 import { SlotsPage } from './pages/SlotsPage';
 import { CrashPage } from './pages/CrashPage';
 import { BlackjackPage } from './pages/BlackjackPage';
@@ -114,6 +115,14 @@ export default function App() {
         element={
           <ProtectedRoute>
             <ChickenPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/games/rps"
+        element={
+          <ProtectedRoute>
+            <RpsPage />
           </ProtectedRoute>
         }
       />

@@ -22,13 +22,13 @@ const GAMES: GameCardData[] = [
   { id: 'hilo', name: 'Hi-Lo', route: '/games/hilo', tag: 'Card ladder', rtp: '97.0%' },
   { id: 'pump', name: 'Pump', route: '/games/pump', tag: 'Balloon', rtp: '97.0%' },
   { id: 'chicken', name: 'Chicken', route: '/games/chicken', tag: 'Cross the road', rtp: '97.0%' },
+  { id: 'rps', name: 'Rock·Paper·Scissors', route: '/games/rps', tag: '3-way duel', rtp: '97.0%' },
   { id: 'blackjack', name: 'Blackjack', route: '/games/blackjack', tag: 'Strategy', rtp: '99.5%' },
 ];
 
-// Planned games (THE_NEXT_STEP lineup) — shown as non-clickable "coming soon" tiles.
-const COMING_SOON: GameCardData[] = [
-  { id: 'rps', name: 'Rock·Paper·Scissors', route: '', tag: '3-way duel', eta: '~8 weeks' },
-];
+// Planned games (THE_NEXT_STEP lineup) — the whole lineup is now live, so this is
+// empty; the "Coming soon" section hides itself when there's nothing in it.
+const COMING_SOON: GameCardData[] = [];
 
 interface MeResponse {
   id: number;
@@ -95,16 +95,20 @@ export function DashboardPage() {
         ))}
       </div>
 
-      <div className="section-head">
-        <h3>
-          Coming soon <span>· {COMING_SOON.length} in development</span>
-        </h3>
-      </div>
-      <div className="game-grid">
-        {COMING_SOON.map((game) => (
-          <VaultGameCard key={game.id} game={game} soon />
-        ))}
-      </div>
+      {COMING_SOON.length > 0 && (
+        <>
+          <div className="section-head">
+            <h3>
+              Coming soon <span>· {COMING_SOON.length} in development</span>
+            </h3>
+          </div>
+          <div className="game-grid">
+            {COMING_SOON.map((game) => (
+              <VaultGameCard key={game.id} game={game} soon />
+            ))}
+          </div>
+        </>
+      )}
 
       <div className="section-head">
         <h3>

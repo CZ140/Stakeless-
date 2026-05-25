@@ -2227,6 +2227,45 @@ body::before {
 
 /* .banner-chicken card gradient is defined in the game-card section above. */
 
+/* ─── Rock-Paper-Scissors ─────────────────────────────────────────────────────
+   Reuses the .dice-stats stat-strip, .hilo-hint and the .opt-grid picker. A
+   face-off arena with two hands; the house hand mirrors to face the player. */
+.rps-stage {
+  display: flex; flex-direction: column; align-items: center;
+  gap: 18px; padding: 18px 12px; width: 100%;
+}
+.rps-arena {
+  display: flex; align-items: center; justify-content: center; gap: 18px;
+  width: 100%; max-width: 480px; min-height: 150px;
+}
+.rps-side { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.rps-who { font-family: var(--font-mono, monospace); font-size: 11px; letter-spacing: 0.12em; color: var(--text-muted); }
+.rps-hand {
+  font-size: 64px; line-height: 1; display: inline-block;
+  filter: grayscale(0.1) drop-shadow(0 6px 14px rgba(0, 0, 0, 0.5));
+  transition: filter 0.2s, opacity 0.2s;
+}
+.rps-hand.mirror { transform: scaleX(-1); }
+.rps-hand.won { filter: drop-shadow(0 0 14px rgba(0, 224, 130, 0.7)); }
+.rps-hand.lost { opacity: 0.4; filter: grayscale(0.7); }
+.rps-hand.tied { filter: drop-shadow(0 0 10px rgba(179, 146, 240, 0.55)); }
+.rps-vs {
+  flex: 0 0 auto; min-width: 76px; text-align: center;
+  font-family: var(--font-mono, monospace); font-size: 15px; font-weight: 800;
+  letter-spacing: 0.08em; color: #B392F0;
+}
+
+.rps-picks { width: 100%; max-width: 420px; }
+.rps-pick {
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  padding: 12px 8px !important;
+}
+.rps-pick .emo { font-size: 26px; line-height: 1; }
+.rps-pick .lbl { font-family: var(--font-mono, monospace); font-size: 12px; }
+.rps-pick.active { border-color: #B392F0 !important; color: #CDB4FF !important; background: rgba(179, 146, 240, 0.12) !important; }
+
+/* .banner-rps card gradient is defined in the game-card section above. */
+
 /* ─── Slots ─────────────────────────────────────────────────────────────────── */
 .slots-stage {
   display: flex; flex-direction: column; align-items: center;

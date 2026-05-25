@@ -23,7 +23,11 @@ const GAME_LABEL: Record<string, string> = {
   hilo: 'Hi-Lo',
   pump: 'Pump',
   chicken: 'Chicken',
+  rps: 'RPS',
 };
+
+// Which RPS throw beats which (for describing logged matchups).
+const RPS_BEATS: Record<string, string> = { rock: 'scissors', paper: 'rock', scissors: 'paper' };
 
 const ROULETTE_RED = new Set([
   1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36,
@@ -84,6 +88,15 @@ function describe(row: RawActivity): string {
         return `Cashed out · ${n} lane${n === 1 ? '' : 's'}`;
       }
       return /^dead_\d+$/.test(outcome) ? 'Hit a car' : 'Round settled';
+    }
+    case 'rps': {
+      // outcome is stored as `${choice}_${house}` (e.g. "rock_scissors").
+      const m = /^(rock|paper|scissors)_(rock|paper|scissors)$/.exec(outcome);
+      if (!m) return 'Threw a hand';
+      const [, choice, house] = m;
+      const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+      if (choice === house) return `Tie · ${cap(house!)}`;
+      return RPS_BEATS[choice!] === house ? `${cap(choice!)} beats ${house}` : `${cap(house!)} beats ${choice}`;
     }
     case 'blackjack':
       switch (outcome) {
