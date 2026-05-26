@@ -1,3 +1,4 @@
+import { useShallow } from 'zustand/react/shallow';
 import { useEffect, useRef, useState } from 'react';
 import gsap from 'gsap';
 import { RPS, RPS_CHOICES, rpsWinMultiplier, type RpsChoice } from '@gambling/shared';
@@ -26,7 +27,7 @@ const FIST = '✊'; // closed fist shown while shaking, before the reveal
 const COUNT = ['Rock…', 'Paper…', 'Scissors…'];
 
 export function RpsPage() {
-  const { betAmount, choice, playing, lastResult, setBetAmount, setChoice, setPlaying, setLastResult } = useRpsStore();
+  const { betAmount, choice, playing, lastResult, setBetAmount, setChoice, setPlaying, setLastResult } = useRpsStore(useShallow((s) => ({ betAmount: s.betAmount, choice: s.choice, playing: s.playing, lastResult: s.lastResult, setBetAmount: s.setBetAmount, setChoice: s.setChoice, setPlaying: s.setPlaying, setLastResult: s.setLastResult })));
   const { muted, toggleMute } = useAudioStore();
   const balance = useBalanceStore((s) => s.balance);
   const [error, setError] = useState<string | null>(null);

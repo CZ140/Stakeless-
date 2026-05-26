@@ -1,3 +1,4 @@
+import { useShallow } from 'zustand/react/shallow';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { AppShell } from '../components/vault/AppShell';
 import { RouletteWheel } from '../components/RouletteWheel';
@@ -31,7 +32,7 @@ export function RoulettePage() {
     placedChips, selectedChip, setSelectedChip, placeChip,
     undoLast, clearAll, halfBet, doubleBet, rebet,
     gamePhase, setGamePhase, addToHistory, history,
-  } = useRouletteStore();
+  } = useRouletteStore(useShallow((s) => ({ placedChips: s.placedChips, selectedChip: s.selectedChip, setSelectedChip: s.setSelectedChip, placeChip: s.placeChip, undoLast: s.undoLast, clearAll: s.clearAll, halfBet: s.halfBet, doubleBet: s.doubleBet, rebet: s.rebet, gamePhase: s.gamePhase, setGamePhase: s.setGamePhase, addToHistory: s.addToHistory, history: s.history })));
   const balance = useBalanceStore((s) => s.balance);
   const { muted, toggleMute } = useAudioStore();
   const stageRef = useRef<HTMLDivElement>(null);

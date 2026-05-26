@@ -1,3 +1,4 @@
+import { useShallow } from 'zustand/react/shallow';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import gsap from 'gsap';
 import {
@@ -55,7 +56,7 @@ export function PumpPage() {
   const {
     betAmount, difficulty, phase, sessionId, pumps, multiplier, maxPumps, maxedOut, result,
     setBetAmount, setDifficulty, startRound, applyInflate, applyPop, applyCashout, restoreSession, reset,
-  } = usePumpStore();
+  } = usePumpStore(useShallow((s) => ({ betAmount: s.betAmount, difficulty: s.difficulty, phase: s.phase, sessionId: s.sessionId, pumps: s.pumps, multiplier: s.multiplier, maxPumps: s.maxPumps, maxedOut: s.maxedOut, result: s.result, setBetAmount: s.setBetAmount, setDifficulty: s.setDifficulty, startRound: s.startRound, applyInflate: s.applyInflate, applyPop: s.applyPop, applyCashout: s.applyCashout, restoreSession: s.restoreSession, reset: s.reset })));
   const { muted, toggleMute } = useAudioStore();
   const balance = useBalanceStore((s) => s.balance);
   const [error, setError] = useState<string | null>(null);

@@ -1,3 +1,4 @@
+import { useShallow } from 'zustand/react/shallow';
 import { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AppShell } from '../components/vault/AppShell';
@@ -113,7 +114,7 @@ function PlinkoHowToPlay({ open, onClose }: { open: boolean; onClose: () => void
 }
 
 export function PlinkoPage() {
-  const { betAmount, rows, riskLevel, isMuted, setBetAmount, setRows, setRiskLevel, toggleMute } = usePlinkoStore();
+  const { betAmount, rows, riskLevel, isMuted, setBetAmount, setRows, setRiskLevel, toggleMute } = usePlinkoStore(useShallow((s) => ({ betAmount: s.betAmount, rows: s.rows, riskLevel: s.riskLevel, isMuted: s.isMuted, setBetAmount: s.setBetAmount, setRows: s.setRows, setRiskLevel: s.setRiskLevel, toggleMute: s.toggleMute })));
   const { playWin, playLoss } = useGameSounds(isMuted);
   const balance = useBalanceStore((s) => s.balance);
 

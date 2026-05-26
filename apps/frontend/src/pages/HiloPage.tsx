@@ -1,3 +1,4 @@
+import { useShallow } from 'zustand/react/shallow';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import gsap from 'gsap';
 import {
@@ -48,7 +49,7 @@ export function HiloPage() {
   const {
     betAmount, phase, sessionId, currentCard, history, streak, multiplier, result,
     setBetAmount, startRound, applyWin, applyBust, applyCashout, restoreSession, reset,
-  } = useHiloStore();
+  } = useHiloStore(useShallow((s) => ({ betAmount: s.betAmount, phase: s.phase, sessionId: s.sessionId, currentCard: s.currentCard, history: s.history, streak: s.streak, multiplier: s.multiplier, result: s.result, setBetAmount: s.setBetAmount, startRound: s.startRound, applyWin: s.applyWin, applyBust: s.applyBust, applyCashout: s.applyCashout, restoreSession: s.restoreSession, reset: s.reset })));
   const { muted, toggleMute } = useAudioStore();
   const balance = useBalanceStore((s) => s.balance);
   const [error, setError] = useState<string | null>(null);

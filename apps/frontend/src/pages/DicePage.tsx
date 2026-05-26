@@ -1,3 +1,4 @@
+import { useShallow } from 'zustand/react/shallow';
 import { useEffect, useRef, useState } from 'react';
 import gsap from 'gsap';
 import { diceWinChance, diceMultiplier, type DiceDirection } from '@gambling/shared';
@@ -29,7 +30,7 @@ export function DicePage() {
   const {
     betAmount, target, direction, rolling, lastResult,
     setBetAmount, setTarget, setDirection, setRolling, setLastResult,
-  } = useDiceStore();
+  } = useDiceStore(useShallow((s) => ({ betAmount: s.betAmount, target: s.target, direction: s.direction, rolling: s.rolling, lastResult: s.lastResult, setBetAmount: s.setBetAmount, setTarget: s.setTarget, setDirection: s.setDirection, setRolling: s.setRolling, setLastResult: s.setLastResult })));
   const { muted, toggleMute } = useAudioStore();
   const balance = useBalanceStore((s) => s.balance);
   const [error, setError] = useState<string | null>(null);

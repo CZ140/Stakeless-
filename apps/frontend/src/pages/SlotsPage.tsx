@@ -1,3 +1,4 @@
+import { useShallow } from 'zustand/react/shallow';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { PAYLINES, SLOT_SYMBOLS, type SlotGrid, type SlotSymbolId } from '@gambling/shared';
 import { AppShell } from '../components/vault/AppShell';
@@ -42,7 +43,7 @@ function Glyph({ id }: { id: SlotSymbolId }) {
 }
 
 export function SlotsPage() {
-  const { betAmount, spinning, lastResult, setBetAmount, setSpinning, setLastResult } = useSlotsStore();
+  const { betAmount, spinning, lastResult, setBetAmount, setSpinning, setLastResult } = useSlotsStore(useShallow((s) => ({ betAmount: s.betAmount, spinning: s.spinning, lastResult: s.lastResult, setBetAmount: s.setBetAmount, setSpinning: s.setSpinning, setLastResult: s.setLastResult })));
   const { muted, toggleMute } = useAudioStore();
   const balance = useBalanceStore((s) => s.balance);
   const [error, setError] = useState<string | null>(null);
