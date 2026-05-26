@@ -9,6 +9,11 @@ apps/backend/public/
 # Playwright MCP test artifacts
 .playwright-mcp/
 
+# Playwright e2e output
+test-results/
+playwright-report/
+playwright/.cache/
+
 # Internal planning / spec artifacts (kept local, not published)
 .planning/
 

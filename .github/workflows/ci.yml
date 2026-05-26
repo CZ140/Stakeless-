@@ -26,6 +26,8 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm typecheck
       - run: pnpm lint
+      - run: pnpm --filter shared test # fast-check RTP property tests (no DB/DOM)
+      - run: pnpm --filter frontend test # Vitest + RTL (jsdom)
       - run: pnpm --filter frontend build
 
   backend-tests:
@@ -62,3 +64,40 @@ jobs:
           # pin them so the suite is unambiguous about which database it hits.
           TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/gambling_test
           TEST_ADMIN_URL: postgresql://postgres:postgres@localhost:5432/postgres
+
+  e2e:
+    name: E2E money path (Playwright)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: gambling_dev
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      # The Playwright webServer runs `pnpm dev`; the backend reads these from the
+      # process env (no .env in CI). Postgres is the service container above.
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/gambling_dev
+      JWT_SECRET: ci-e2e-jwt-secret-ci-e2e-jwt-secret-0123456789
+      NODE_ENV: development
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm --filter backend db:migrate # apply schema to the service DB
+      - run: pnpm e2e
