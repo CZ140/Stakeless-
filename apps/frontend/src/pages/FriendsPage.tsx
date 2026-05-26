@@ -4,21 +4,32 @@ import { toast } from 'sonner';
 import { AppShell } from '../components/vault/AppShell';
 import { Avatar } from '../components/vault/Avatar';
 import { TierBadge } from '../components/vault/TierBadge';
-import { SearchIcon, XIcon, CheckIcon } from '../components/vault/icons';
+import { SearchIcon, XIcon, CheckIcon, BanIcon } from '../components/vault/icons';
 import { apiClient } from '../api/client';
 import { useFriendsStore } from '../stores/friendsStore';
-import type { FriendDTO, FriendRequestDTO, UserSearchResultDTO } from '@gambling/shared';
+import type { FriendDTO, BlockedUserDTO, FriendRequestDTO, UserSearchResultDTO } from '@gambling/shared';
 
-type TabKey = 'friends' | 'requests' | 'add';
+type TabKey = 'friends' | 'requests' | 'add' | 'blocked';
 
 function joinedLabel(iso: string): string {
   const d = new Date(iso);
   return d.toLocaleDateString(undefined, { month: 'short', year: 'numeric' });
 }
 
+// Avatar with a live presence dot (green online / grey offline).
+function PresenceAvatar({ user, online }: { user: { username: string; avatarColor: string | null; avatarImage: string | null }; online: boolean }) {
+  return (
+    <div className="fg-ava-wrap">
+      <Avatar username={user.username} avatarColor={user.avatarColor} avatarImage={user.avatarImage} className="fg-ava s40" />
+      <span className={'fg-presence' + (online ? ' online' : '')} title={online ? 'Online' : 'Offline'} />
+    </div>
+  );
+}
+
 function FriendsList() {
   const friends = useFriendsStore((s) => s.friends);
   const removeFriendByUserId = useFriendsStore((s) => s.removeFriendByUserId);
+  const addBlocked = useFriendsStore((s) => s.addBlocked);
 
   async function remove(f: FriendDTO) {
     removeFriendByUserId(f.userId); // optimistic
@@ -26,6 +37,18 @@ function FriendsList() {
       await apiClient.delete(`/friends/${f.userId}`);
     } catch {
       toast.error('Could not remove friend');
+    }
+  }
+
+  async function block(f: FriendDTO) {
+    if (!window.confirm(`Block ${f.username}? You'll no longer be friends and neither of you can send requests until you unblock them.`)) return;
+    addBlocked({ userId: f.userId, username: f.username, avatarColor: f.avatarColor, avatarImage: f.avatarImage, tierLevel: f.tierLevel, since: new Date().toISOString() }); // optimistic (also drops from friends)
+    try {
+      await apiClient.post(`/friends/${f.userId}/block`);
+      toast.success(`Blocked ${f.username}`);
+    } catch {
+      useFriendsStore.getState().removeBlocked(f.userId);
+      toast.error('Could not block user');
     }
   }
 
@@ -42,13 +65,15 @@ function FriendsList() {
     <div className="fg-list">
       {friends.map((f) => (
         <div className="fg-row" key={f.userId}>
-          <Avatar username={f.username} avatarColor={f.avatarColor} avatarImage={f.avatarImage} className="fg-ava s40" />
+          <PresenceAvatar user={f} online={f.online} />
           <div className="fg-row-meta">
             <div className="fg-row-name">
               <Link className="fg-link" to={`/profile/${f.username}`}>{f.username}</Link>
               <TierBadge level={f.tierLevel} />
             </div>
             <div className="fg-row-sub">
+              <span className={'fg-status' + (f.online ? ' online' : '')}>{f.online ? 'Online' : 'Offline'}</span>
+              <span className="fg-sep">·</span>
               <span className="num">{f.balance.toLocaleString()}</span>
               <span className="fg-coin">🪙</span>
               <span className="fg-sep">·</span>
@@ -60,6 +85,54 @@ function FriendsList() {
               Invite to table
             </Link>
             <button className="btn btn-ghost" style={{ padding: '7px 14px', fontSize: 12 }} onClick={() => remove(f)}>Remove</button>
+            <button className="btn btn-ghost fg-danger" style={{ padding: '7px 10px', fontSize: 12 }} onClick={() => block(f)} title={`Block ${f.username}`} aria-label={`Block ${f.username}`}>
+              <BanIcon size={13} />
+            </button>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function BlockedTab() {
+  const blocked = useFriendsStore((s) => s.blocked);
+  const removeBlocked = useFriendsStore((s) => s.removeBlocked);
+
+  async function unblock(b: BlockedUserDTO) {
+    removeBlocked(b.userId); // optimistic
+    try {
+      await apiClient.delete(`/friends/${b.userId}/block`);
+      toast.success(`Unblocked ${b.username}`);
+    } catch {
+      useFriendsStore.getState().addBlocked(b); // revert
+      toast.error('Could not unblock user');
+    }
+  }
+
+  if (blocked.length === 0) {
+    return (
+      <div className="fg-empty">
+        <div className="fg-empty-mark">⊘</div>
+        <h4>No one blocked</h4>
+        <p>Blocked users can't send you requests and won't appear in your search. Block someone from their friend row.</p>
+      </div>
+    );
+  }
+  return (
+    <div className="fg-list">
+      {blocked.map((b) => (
+        <div className="fg-row" key={b.userId}>
+          <Avatar username={b.username} avatarColor={b.avatarColor} avatarImage={b.avatarImage} className="fg-ava s40" />
+          <div className="fg-row-meta">
+            <div className="fg-row-name">
+              <Link className="fg-link" to={`/profile/${b.username}`}>{b.username}</Link>
+              <span className="tag" style={{ marginLeft: 4 }}>Blocked</span>
+            </div>
+            <div className="fg-row-sub">can't send you requests or see you in search</div>
+          </div>
+          <div className="fg-row-actions">
+            <button className="btn btn-outline" style={{ padding: '7px 16px', fontSize: 12 }} onClick={() => unblock(b)}>Unblock</button>
           </div>
         </div>
       ))}
@@ -251,6 +324,7 @@ export function FriendsPage() {
   const friends = useFriendsStore((s) => s.friends);
   const incoming = useFriendsStore((s) => s.incoming);
   const outgoing = useFriendsStore((s) => s.outgoing);
+  const blocked = useFriendsStore((s) => s.blocked);
 
   // Refresh from the server on mount (useSocial seeds it on app load, but a hard
   // navigation here should show fresh data).
@@ -260,12 +334,19 @@ export function FriendsPage() {
       .get<{ incoming: FriendRequestDTO[]; outgoing: FriendRequestDTO[] }>('/friends/requests')
       .then((r) => useFriendsStore.getState().setRequests(r.data.incoming, r.data.outgoing))
       .catch(() => {});
+    apiClient
+      .get<{ blocked: BlockedUserDTO[] }>('/friends/blocked')
+      .then((r) => useFriendsStore.getState().setBlocked(r.data.blocked))
+      .catch(() => {});
   }, []);
+
+  const onlineCount = friends.filter((f) => f.online).length;
 
   const tabs: { id: TabKey; label: string; count?: number; badge?: boolean }[] = [
     { id: 'friends', label: 'Friends', count: friends.length },
     { id: 'requests', label: 'Requests', count: incoming.length, badge: incoming.length > 0 },
     { id: 'add', label: 'Add friend' },
+    { id: 'blocked', label: 'Blocked', count: blocked.length },
   ];
 
   return (
@@ -278,6 +359,7 @@ export function FriendsPage() {
         </div>
         <div className="welcome-meta">
           <div className="stat">FRIENDS<strong className="num">{friends.length}</strong></div>
+          <div className="stat">ONLINE<strong className="num pos">{onlineCount}</strong></div>
           <div className="stat">REQUESTS<strong className="num pos">{incoming.length}</strong></div>
           <div className="stat">SENT<strong className="num">{outgoing.length}</strong></div>
         </div>
@@ -295,6 +377,7 @@ export function FriendsPage() {
       {tab === 'friends' && <FriendsList />}
       {tab === 'requests' && <RequestsTab />}
       {tab === 'add' && <AddFriendTab />}
+      {tab === 'blocked' && <BlockedTab />}
     </AppShell>
   );
 }

@@ -18,6 +18,9 @@ import {
   listFriends,
   listRequests,
   searchUsers,
+  blockUser,
+  unblockUser,
+  listBlocked,
 } from '../services/friendService.js';
 
 export const friendsRouter: IRouter = Router();
@@ -28,6 +31,7 @@ function handleSocialError(err: unknown, res: import('express').Response): boole
   const map: Record<string, [number, string]> = {
     NOT_FOUND: [404, 'No user with that username'],
     CANNOT_FRIEND_SELF: [400, 'You cannot friend yourself'],
+    CANNOT_BLOCK_SELF: [400, 'You cannot block yourself'],
     ALREADY_FRIENDS: [409, 'You are already friends'],
     REQUEST_EXISTS: [409, 'A request is already pending'],
     BLOCKED: [403, 'Unable to send a request'],
@@ -68,6 +72,16 @@ friendsRouter.get('/search', requireAuth, async (req, res) => {
     res.json({ results: await searchUsers(req.user!.id, q) });
   } catch (err) {
     console.error('[friends] search error:', err);
+    res.status(500).json({ error: 'An unexpected error occurred' });
+  }
+});
+
+// GET /api/friends/blocked — users the caller has blocked
+friendsRouter.get('/blocked', requireAuth, async (req, res) => {
+  try {
+    res.json({ blocked: await listBlocked(req.user!.id) });
+  } catch (err) {
+    console.error('[friends] blocked list error:', err);
     res.status(500).json({ error: 'An unexpected error occurred' });
   }
 });
@@ -143,6 +157,40 @@ friendsRouter.delete('/requests/:id', requireAuth, async (req, res) => {
   } catch (err) {
     if (handleSocialError(err, res)) return;
     console.error('[friends] cancel error:', err);
+    res.status(500).json({ error: 'An unexpected error occurred' });
+  }
+});
+
+// POST /api/friends/:userId/block — block a user (ends any friendship/request)
+friendsRouter.post('/:userId/block', socialLimiter, requireAuth, async (req, res) => {
+  const targetId = Number(req.params.userId);
+  if (!Number.isInteger(targetId)) {
+    res.status(400).json({ error: 'Invalid user id' });
+    return;
+  }
+  try {
+    await blockUser(req.user!.id, targetId);
+    res.status(204).end();
+  } catch (err) {
+    if (handleSocialError(err, res)) return;
+    console.error('[friends] block error:', err);
+    res.status(500).json({ error: 'An unexpected error occurred' });
+  }
+});
+
+// DELETE /api/friends/:userId/block — lift a block
+friendsRouter.delete('/:userId/block', requireAuth, async (req, res) => {
+  const targetId = Number(req.params.userId);
+  if (!Number.isInteger(targetId)) {
+    res.status(400).json({ error: 'Invalid user id' });
+    return;
+  }
+  try {
+    await unblockUser(req.user!.id, targetId);
+    res.status(204).end();
+  } catch (err) {
+    if (handleSocialError(err, res)) return;
+    console.error('[friends] unblock error:', err);
     res.status(500).json({ error: 'An unexpected error occurred' });
   }
 });

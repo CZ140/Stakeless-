@@ -207,6 +207,14 @@ export const XIcon = ({ size = 14 }: IconProps) => (
   </svg>
 );
 
+// No-entry / block — a circle with a diagonal bar.
+export const BanIcon = ({ size = 14 }: IconProps) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" {...stroke}>
+    <circle cx="12" cy="12" r="9" />
+    <line x1="5.6" y1="5.6" x2="18.4" y2="18.4" />
+  </svg>
+);
+
 export const ArrowUpIcon = ({ size = 12 }: IconProps) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round">
     <path d="M7 14l5-5 5 5" />

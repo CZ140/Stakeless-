@@ -18,6 +18,8 @@ import { attachAuthMiddleware } from './authMiddleware.js';
 import { startLeaderboardBroadcast } from './leaderboardBroadcast.js';
 import { startGroupLeaderboardBroadcast } from './groupLeaderboardBroadcast.js';
 import { isGroupMember, computeGroupLeaderboard } from '../services/groupService.js';
+import { listFriendIds } from '../services/friendService.js';
+import { markOnline, markOffline } from '../services/presence.js';
 import { attachPokerRealtime } from './poker.js';
 import { tableManager } from '../services/poker/manager.js';
 import { sanitizeChat, allowChat, addChatMessage, chatHistory } from '../services/poker/chat.js';
@@ -61,6 +63,8 @@ interface ServerToClientEvents {
   'friend:request': (data: { request: FriendRequestDTO }) => void;
   'friend:accepted': (data: { friend: FriendDTO }) => void;
   'group:invite': (data: { invite: GroupInviteDTO }) => void;
+  // A friend came online/offline — pushed to each of that user's friends' rooms.
+  'presence:update': (data: { userId: number; online: boolean }) => void;
   // Private group leaderboard — pushed to the group:<id> room (members only).
   'group:leaderboard': (data: { groupId: number; snapshot: GroupLeaderboardSnapshot }) => void;
   // Poker: public table state to the poker:<id> room; private hole cards to the
@@ -99,6 +103,19 @@ interface SocketData {
 
 export let io: Server<ClientToServerEvents, ServerToClientEvents, Record<string, never>, SocketData>;
 
+// Fan a presence change out to a user's friends (their user:<id> rooms). Rooms
+// with no connected sockets just no-op, so this is bounded by friend count.
+async function broadcastPresence(userId: number, online: boolean): Promise<void> {
+  try {
+    const friendIds = await listFriendIds(userId);
+    for (const fid of friendIds) {
+      io.to(`user:${fid}`).emit('presence:update', { userId, online });
+    }
+  } catch (err) {
+    console.error('[socket] presence broadcast failed:', err);
+  }
+}
+
 export function createSocketServer(server: HttpServer): void {
   io = new Server(server, {
     cors: {
@@ -114,6 +131,12 @@ export function createSocketServer(server: HttpServer): void {
     const userId = socket.data.userId;
     if (userId !== undefined) {
       void socket.join(`user:${userId}`);
+      // First socket for this user → they just came online; tell their friends.
+      if (markOnline(userId)) void broadcastPresence(userId, true);
+      // Last socket gone → offline. (Guest sockets carry no userId, so skip them.)
+      socket.on('disconnect', () => {
+        if (markOffline(userId)) void broadcastPresence(userId, false);
+      });
     }
     // All sockets (auth and guest) receive leaderboard:update via io.emit
 

@@ -129,6 +129,7 @@ export type {
   SocialUser,
   FriendshipStatus,
   FriendDTO,
+  BlockedUserDTO,
   FriendRequestDTO,
   FriendRequestsDTO,
   RelationshipTag,

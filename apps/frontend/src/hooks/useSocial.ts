@@ -55,6 +55,9 @@ export function useSocial(): void {
       useGroupsStore.getState().addInvite(invite);
       toast(`${invite.inviter.username} invited you to ${invite.group.name}`);
     }
+    function onPresence({ userId, online }: { userId: number; online: boolean }) {
+      useFriendsStore.getState().setFriendPresence(userId, online);
+    }
     function onPokerInvite(invite: PokerInvite) {
       toast(`${invite.inviter.username} invited you to poker · ${invite.tableName}`, {
         action: { label: 'Join', onClick: () => navigate(`/games/poker/${invite.tableId}`) },
@@ -65,11 +68,13 @@ export function useSocial(): void {
     socket.on('friend:accepted', onFriendAccepted);
     socket.on('group:invite', onGroupInvite);
     socket.on('poker:invite', onPokerInvite);
+    socket.on('presence:update', onPresence);
     return () => {
       socket.off('friend:request', onFriendRequest);
       socket.off('friend:accepted', onFriendAccepted);
       socket.off('group:invite', onGroupInvite);
       socket.off('poker:invite', onPokerInvite);
+      socket.off('presence:update', onPresence);
     };
   }, [accessToken, navigate]);
 }

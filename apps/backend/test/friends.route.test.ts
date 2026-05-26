@@ -171,4 +171,96 @@ describe('Friends routes', () => {
     );
     expect(cByName['crypto_owl']).toBe('incoming');
   });
+
+  it('stamps friends with an offline presence flag (no sockets connected in route tests)', async () => {
+    const a = await createUser({ username: 'alice' });
+    const b = await createUser({ username: 'bob' });
+    const send = await auth('post', '/api/friends/requests', a.token).send({ username: 'bob' });
+    await auth('post', `/api/friends/requests/${send.body.request.id}/accept`, b.token).send();
+
+    const list = await auth('get', '/api/friends', a.token);
+    expect(list.body.friends[0]).toMatchObject({ username: 'bob', online: false });
+  });
+
+  // ─── Blocking ───────────────────────────────────────────────────────────────
+  it('blocking a friend ends the friendship and lists them as blocked', async () => {
+    const a = await createUser({ username: 'alice' });
+    const b = await createUser({ username: 'bob' });
+    const send = await auth('post', '/api/friends/requests', a.token).send({ username: 'bob' });
+    await auth('post', `/api/friends/requests/${send.body.request.id}/accept`, b.token).send();
+
+    const block = await auth('post', `/api/friends/${b.user.id}/block`, a.token).send();
+    expect(block.status).toBe(204);
+
+    // No longer friends on either side.
+    expect((await auth('get', '/api/friends', a.token)).body.friends).toHaveLength(0);
+    expect((await auth('get', '/api/friends', b.token)).body.friends).toHaveLength(0);
+
+    // Listed as blocked for the blocker only.
+    const aBlocked = await auth('get', '/api/friends/blocked', a.token);
+    expect(aBlocked.body.blocked.map((u: { username: string }) => u.username)).toEqual(['bob']);
+    expect((await auth('get', '/api/friends/blocked', b.token)).body.blocked).toHaveLength(0);
+  });
+
+  it('blocking clears a pending request between the two users', async () => {
+    const a = await createUser({ username: 'alice' });
+    const b = await createUser({ username: 'bob' });
+    await auth('post', '/api/friends/requests', a.token).send({ username: 'bob' }); // A → B pending
+
+    expect((await auth('post', `/api/friends/${b.user.id}/block`, a.token).send()).status).toBe(204);
+    expect((await auth('get', '/api/friends/requests', a.token)).body.outgoing).toHaveLength(0);
+    expect((await auth('get', '/api/friends/requests', b.token)).body.incoming).toHaveLength(0);
+  });
+
+  it('neither side can send a request while a block stands (403)', async () => {
+    const a = await createUser({ username: 'alice' });
+    const b = await createUser({ username: 'bob' });
+    await auth('post', `/api/friends/${b.user.id}/block`, a.token).send();
+
+    // Blocker can't re-friend.
+    expect((await auth('post', '/api/friends/requests', a.token).send({ username: 'bob' })).status).toBe(403);
+    // Blocked user can't friend the blocker either — and the 403 doesn't leak who blocked.
+    expect((await auth('post', '/api/friends/requests', b.token).send({ username: 'alice' })).status).toBe(403);
+  });
+
+  it('hides a blocked user from the blocker search results', async () => {
+    const a = await createUser({ username: 'alice' });
+    const b = await createUser({ username: 'bob_blocked' });
+    await auth('post', `/api/friends/${b.user.id}/block`, a.token).send();
+
+    const res = await auth('get', '/api/friends/search?q=bob', a.token);
+    expect(res.body.results.map((r: { username: string }) => r.username)).not.toContain('bob_blocked');
+  });
+
+  it('blocking is idempotent', async () => {
+    const a = await createUser({ username: 'alice' });
+    const b = await createUser({ username: 'bob' });
+    expect((await auth('post', `/api/friends/${b.user.id}/block`, a.token).send()).status).toBe(204);
+    expect((await auth('post', `/api/friends/${b.user.id}/block`, a.token).send()).status).toBe(204);
+    expect((await auth('get', '/api/friends/blocked', a.token)).body.blocked).toHaveLength(1);
+  });
+
+  it('refuses to block yourself (400)', async () => {
+    const a = await createUser({ username: 'alice' });
+    expect((await auth('post', `/api/friends/${a.user.id}/block`, a.token).send()).status).toBe(400);
+  });
+
+  it('unblocks and allows friending again', async () => {
+    const a = await createUser({ username: 'alice' });
+    const b = await createUser({ username: 'bob' });
+    await auth('post', `/api/friends/${b.user.id}/block`, a.token).send();
+
+    const unblock = await auth('delete', `/api/friends/${b.user.id}/block`, a.token).send();
+    expect(unblock.status).toBe(204);
+    expect((await auth('get', '/api/friends/blocked', a.token)).body.blocked).toHaveLength(0);
+
+    // A request now goes through.
+    expect((await auth('post', '/api/friends/requests', a.token).send({ username: 'bob' })).status).toBe(201);
+  });
+
+  it('404s unblocking someone who was not blocked', async () => {
+    const a = await createUser({ username: 'alice' });
+    const b = await createUser({ username: 'bob' });
+    expect((await auth('delete', `/api/friends/${b.user.id}/block`, a.token).send()).status).toBe(404);
+  });
 });

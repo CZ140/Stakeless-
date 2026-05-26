@@ -23,6 +23,13 @@ export type FriendshipStatus = 'pending' | 'accepted' | 'blocked';
 export interface FriendDTO extends SocialUser {
   balance: number;
   since: string; // ISO timestamp the friendship was accepted
+  online: boolean; // live presence — ≥1 of their sockets is connected right now
+}
+
+// A user the viewer has blocked. Listed on the Friends "Blocked" tab so the
+// block can be lifted. `since` is when the block was created.
+export interface BlockedUserDTO extends SocialUser {
+  since: string;
 }
 
 export interface FriendRequestDTO {

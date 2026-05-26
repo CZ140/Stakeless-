@@ -13,11 +13,13 @@ import { SOCIAL_LIMITS } from '@gambling/shared';
 import type {
   SocialUser,
   FriendDTO,
+  BlockedUserDTO,
   FriendRequestDTO,
   FriendRequestsDTO,
   UserSearchResultDTO,
   RelationshipTag,
 } from '@gambling/shared';
+import { isOnline } from './presence.js';
 
 function err(code: string, message: string): Error {
   return Object.assign(new Error(message), { code });
@@ -127,8 +129,8 @@ export async function sendFriendRequest(
     return {
       kind: 'accepted',
       otherUserId: target.id,
-      friendForActor: { ...toSocialUser(target), balance: target.balance, since: new Date().toISOString() },
-      friendForOther: { ...toSocialUser(actor), balance: actor.balance, since: new Date().toISOString() },
+      friendForActor: { ...toSocialUser(target), balance: target.balance, since: new Date().toISOString(), online: isOnline(target.id) },
+      friendForOther: { ...toSocialUser(actor), balance: actor.balance, since: new Date().toISOString(), online: isOnline(actor.id) },
     };
   }
 
@@ -175,8 +177,8 @@ export async function acceptFriendRequest(userId: number, requestId: number): Pr
   const since = now.toISOString();
   return {
     requesterId: row.requesterId,
-    friendForActor: { ...toSocialUser(requester), balance: requester.balance, since },
-    friendForRequester: { ...toSocialUser(actor), balance: actor.balance, since },
+    friendForActor: { ...toSocialUser(requester), balance: requester.balance, since, online: isOnline(requester.id) },
+    friendForRequester: { ...toSocialUser(actor), balance: actor.balance, since, online: isOnline(actor.id) },
   };
 }
 
@@ -203,6 +205,75 @@ export async function removeFriend(userId: number, otherUserId: number): Promise
   await db.delete(friendships).where(eq(friendships.id, rel.id));
 }
 
+// ─── Block / Unblock ──────────────────────────────────────────────────────────
+// Blocking ends any friendship/pending request between the two and records a
+// blocked row owned by the blocker (requesterId = blocker). While it stands,
+// neither side can send a request (sendFriendRequest returns BLOCKED) and the
+// pair is hidden from each other's search. Idempotent: re-blocking is a no-op.
+// The blocked user is NOT notified.
+export async function blockUser(blockerId: number, targetUserId: number): Promise<void> {
+  if (blockerId === targetUserId) throw err('CANNOT_BLOCK_SELF', 'You cannot block yourself');
+  const target = await getUserById(targetUserId);
+  if (!target) throw err('NOT_FOUND', 'User not found');
+
+  await db.transaction(async (tx) => {
+    // Drop whatever relationship currently exists (friends, pending, or a stale
+    // block owned by the other side), then insert a fresh block owned by us.
+    const existing = await tx
+      .select()
+      .from(friendships)
+      .where(
+        or(
+          and(eq(friendships.requesterId, blockerId), eq(friendships.addresseeId, targetUserId)),
+          and(eq(friendships.requesterId, targetUserId), eq(friendships.addresseeId, blockerId)),
+        ),
+      );
+    // Already blocked by us — nothing to do.
+    if (existing.some((r) => r.status === 'blocked' && r.requesterId === blockerId)) return;
+    if (existing.length > 0) {
+      await tx.delete(friendships).where(
+        inArray(
+          friendships.id,
+          existing.map((r) => r.id),
+        ),
+      );
+    }
+    await tx
+      .insert(friendships)
+      .values({ requesterId: blockerId, addresseeId: targetUserId, status: 'blocked', respondedAt: new Date() });
+  });
+}
+
+// Lift a block we own. 404 if we hadn't blocked this user.
+export async function unblockUser(blockerId: number, targetUserId: number): Promise<void> {
+  const deleted = await db
+    .delete(friendships)
+    .where(
+      and(
+        eq(friendships.requesterId, blockerId),
+        eq(friendships.addresseeId, targetUserId),
+        eq(friendships.status, 'blocked'),
+      ),
+    )
+    .returning({ id: friendships.id });
+  if (deleted.length === 0) throw err('NOT_FOUND', 'Not blocked');
+}
+
+// Users the viewer has blocked (rows the viewer owns).
+export async function listBlocked(blockerId: number): Promise<BlockedUserDTO[]> {
+  const rows = await db
+    .select()
+    .from(friendships)
+    .where(and(eq(friendships.status, 'blocked'), eq(friendships.requesterId, blockerId)));
+  if (rows.length === 0) return [];
+  const since = new Map<number, string>();
+  for (const r of rows) since.set(r.addresseeId, (r.respondedAt ?? r.createdAt).toISOString());
+  const us = await db.select(userCols).from(users).where(inArray(users.id, rows.map((r) => r.addresseeId)));
+  return us
+    .map((u) => ({ ...toSocialUser(u), since: since.get(u.id)! }))
+    .sort((a, b) => a.username.localeCompare(b.username));
+}
+
 // ─── Lists ──────────────────────────────────────────────────────────────────
 export async function listFriends(userId: number): Promise<FriendDTO[]> {
   const rows = await db
@@ -223,8 +294,23 @@ export async function listFriends(userId: number): Promise<FriendDTO[]> {
   });
   const us = await db.select(userCols).from(users).where(inArray(users.id, ids));
   return us
-    .map((u) => ({ ...toSocialUser(u), balance: u.balance, since: since.get(u.id)! }))
+    .map((u) => ({ ...toSocialUser(u), balance: u.balance, since: since.get(u.id)!, online: isOnline(u.id) }))
     .sort((a, b) => b.balance - a.balance);
+}
+
+// Friend user-ids only (accepted, either direction) — used by the socket layer to
+// fan out a presence change to a user's friends without building full DTOs.
+export async function listFriendIds(userId: number): Promise<number[]> {
+  const rows = await db
+    .select({ requesterId: friendships.requesterId, addresseeId: friendships.addresseeId })
+    .from(friendships)
+    .where(
+      and(
+        eq(friendships.status, 'accepted'),
+        or(eq(friendships.requesterId, userId), eq(friendships.addresseeId, userId)),
+      ),
+    );
+  return rows.map((r) => (r.requesterId === userId ? r.addresseeId : r.requesterId));
 }
 
 export async function listRequests(userId: number): Promise<FriendRequestsDTO> {
