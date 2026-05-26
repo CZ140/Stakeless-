@@ -1531,6 +1531,18 @@ body::before {
   border-radius: var(--r-md) !important;
 }
 .google-signin-btn [role='button'] > div { height: 48px !important; }
+/* Recolor GSI's warm-gray (filled_black) surface to the site's cool elevated
+   surface + border so it reads as a native secondary button next to the emerald
+   primary. Light label text and the white Google "G" disc stay GSI-default. */
+.google-signin-btn [role='button'] {
+  background-color: var(--bg-elevated) !important;
+  border: 1px solid var(--border-strong) !important;
+  transition: background-color 0.15s, border-color 0.15s !important;
+}
+.google-signin-btn [role='button']:hover {
+  background-color: var(--bg-hover) !important;
+  border-color: var(--border-strong) !important;
+}
 
 .perks-strip {
   display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px;
