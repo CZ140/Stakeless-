@@ -8,6 +8,7 @@ import {
   text,
   boolean,
   uniqueIndex,
+  index,
   check,
 } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
@@ -41,7 +42,14 @@ export const users = pgTable('users', {
   tokenVersion: integer('token_version').notNull().default(0),
   isBanned: boolean('is_banned').notNull().default(false),
   isEmailVerified: boolean('is_email_verified').notNull().default(false),
-});
+}, (t) => ({
+  // The leaderboard sorts users by each of these columns (and the public,
+  // unauthenticated leaderboard endpoint plus the 7s broadcast hit them often).
+  // Without these, every load is a full table scan + sort.
+  balanceIdx: index('idx_users_balance').on(t.balance.desc()),
+  totalWageredIdx: index('idx_users_total_wagered').on(t.totalWagered.desc()),
+  totalProfitIdx: index('idx_users_total_profit').on(t.totalProfit.desc()),
+}));
 
 export const gameLogs = pgTable('game_logs', {
   id: serial('id').primaryKey(),
@@ -54,7 +62,11 @@ export const gameLogs = pgTable('game_logs', {
   profit: bigint('profit', { mode: 'number' }).notNull(),
   balanceAfter: bigint('balance_after', { mode: 'number' }).notNull(),
   createdAt: timestamp('created_at').notNull().defaultNow(),
-});
+}, (t) => ({
+  // Activity feed / bet history reads a user's logs newest-first; this composite
+  // index serves the WHERE user_id = ? ORDER BY created_at DESC access pattern.
+  userCreatedIdx: index('idx_game_logs_user_created').on(t.userId, t.createdAt.desc()),
+}));
 
 export const gameSessions = pgTable(
   'game_sessions',

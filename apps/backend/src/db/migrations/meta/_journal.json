@@ -78,6 +78,13 @@
       "when": 1779764154467,
       "tag": "0010_sloppy_microchip",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1779815353549,
+      "tag": "0011_pale_zzzax",
+      "breakpoints": true
     }
   ]
 }
