@@ -259,7 +259,7 @@ export function ChickenPage() {
   let primaryDisabled = busy;
   if (isActive) {
     if (lane > 0) {
-      primaryLabel = `Cash out · ${Math.floor(betAmount * multiplier).toLocaleString()} V`;
+      primaryLabel = `Cash out · ${Math.floor(betAmount * multiplier).toLocaleString()} coins`;
       onPrimary = () => { void handleCashout(); };
       primaryDisabled = busy;
     } else {

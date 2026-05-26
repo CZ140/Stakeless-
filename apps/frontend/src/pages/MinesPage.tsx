@@ -177,7 +177,7 @@ export function MinesPage() {
   let primaryDisabled = false;
   if (isActivePhase) {
     if (tilesRevealed > 0) {
-      primaryLabel = `Cash out · ${(betAmount * multiplier).toFixed(0)} V`;
+      primaryLabel = `Cash out · ${(betAmount * multiplier).toFixed(0)} coins`;
       onPrimary = () => { void handleCashOut(); };
       primaryDisabled = isLoading;
     } else {
@@ -257,7 +257,7 @@ export function MinesPage() {
 
             {isResultPhase && result && (
               <div className={'notice ' + (result.won ? 'win' : 'loss')} style={{ minWidth: 260 }}>
-                {result.won ? `Cashed out for ${result.payout} V` : `💥 Hit a mine — lost ${betAmount} V`}
+                {result.won ? `Cashed out for ${result.payout} coins` : `💥 Hit a mine — lost ${betAmount} coins`}
               </div>
             )}
           </div>

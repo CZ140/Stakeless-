@@ -128,7 +128,7 @@ export function RoulettePage() {
     }
   }
 
-  const spinLabel = isSpinning ? 'Spinning…' : isResult ? 'Play again' : totalBet > 0 ? `Spin · ${totalBet} V` : 'Place a bet';
+  const spinLabel = isSpinning ? 'Spinning…' : isResult ? 'Play again' : totalBet > 0 ? `Spin · ${totalBet} coins` : 'Place a bet';
 
   // 3 rows × 12 columns of numbers (European layout: top row 3,6,…,36).
   const numberRows = [0, 1, 2].map((row) => Array.from({ length: 12 }, (_, col) => col * 3 + (3 - row)));
@@ -287,7 +287,7 @@ export function RoulettePage() {
             </div>
 
             <div className="bet-summary">
-              <div className="row"><span>Total wager</span><span className="mono">{totalBet} V</span></div>
+              <div className="row"><span>Total wager</span><span className="mono">{totalBet} coins</span></div>
               <div className="row"><span>Bets placed</span><span className="mono">{placedChips.length}</span></div>
             </div>
 

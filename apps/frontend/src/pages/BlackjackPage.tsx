@@ -94,7 +94,7 @@ function PlayerHand({ hand, index, active, settled }: { hand: BJHandView; index:
       </div>
       <div className="bj-hand-foot">
         <span className={`bj-val ${valClass}`}>{hand.value}</span>
-        <span>{hand.bet}{hand.isDoubled ? '×2' : ''} V</span>
+        <span>{hand.bet}{hand.isDoubled ? '×2' : ''} coins</span>
       </div>
       {badge ? <span className={`bj-outcome ${badge.cls}`}>{badge.text}</span> : null}
     </div>
@@ -250,7 +250,7 @@ export function BlackjackPage() {
                 >
                   RESULT&nbsp;&nbsp;
                   <span className={`bj-net ${netClass}`}>
-                    {netTotal > 0 ? '+' : netTotal < 0 ? '−' : ''}{Math.abs(netTotal).toLocaleString()} V
+                    {netTotal > 0 ? '+' : netTotal < 0 ? '−' : ''}{Math.abs(netTotal).toLocaleString()} coins
                   </span>
                 </div>
               )}
@@ -267,7 +267,7 @@ export function BlackjackPage() {
                       </div>
                       <div className="bj-hand-foot">
                         <span className="bj-val">—</span>
-                        <span>{betAmount} V</span>
+                        <span>{betAmount} coins</span>
                       </div>
                     </div>
                   ))
@@ -330,13 +330,13 @@ export function BlackjackPage() {
                     <span className="count">{handCount}</span>
                     <button type="button" onClick={store.incHands} disabled={handCount >= 3} aria-label="More hands">+</button>
                     <span style={{ marginLeft: 'auto', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', fontSize: 11 }}>
-                      TOTAL {totalStake.toLocaleString()} V
+                      TOTAL {totalStake.toLocaleString()} coins
                     </span>
                   </div>
                 </div>
 
                 <button className="btn btn-primary place-bet" disabled={isLoading} onClick={() => void handleDeal()} type="button">
-                  {isLoading ? 'Dealing…' : `Deal · ${totalStake.toLocaleString()} V`}
+                  {isLoading ? 'Dealing…' : `Deal · ${totalStake.toLocaleString()} coins`}
                 </button>
               </>
             )}
@@ -354,7 +354,7 @@ export function BlackjackPage() {
                   </div>
                   <div className="row">
                     <span>Bet</span>
-                    <span className="mono">{activeBet} V</span>
+                    <span className="mono">{activeBet} coins</span>
                   </div>
                 </div>
 
@@ -381,13 +381,13 @@ export function BlackjackPage() {
                     return (
                       <div className="row" key={i}>
                         <span>Hand {i + 1}{h.isDoubled ? ' (2×)' : ''}</span>
-                        <span className={`mono bj-net ${cls}`}>{net > 0 ? '+' : net < 0 ? '−' : ''}{Math.abs(net).toLocaleString()} V</span>
+                        <span className={`mono bj-net ${cls}`}>{net > 0 ? '+' : net < 0 ? '−' : ''}{Math.abs(net).toLocaleString()} coins</span>
                       </div>
                     );
                   })}
                   <div className="row" style={{ borderTop: '1px solid var(--border)', paddingTop: 8, marginTop: 4 }}>
                     <span>Net</span>
-                    <span className={`mono bj-net ${netClass}`}>{netTotal > 0 ? '+' : netTotal < 0 ? '−' : ''}{Math.abs(netTotal).toLocaleString()} V</span>
+                    <span className={`mono bj-net ${netClass}`}>{netTotal > 0 ? '+' : netTotal < 0 ? '−' : ''}{Math.abs(netTotal).toLocaleString()} coins</span>
                   </div>
                 </div>
                 <button className="btn btn-primary place-bet" onClick={store.reset} type="button">

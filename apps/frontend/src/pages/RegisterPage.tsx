@@ -10,7 +10,7 @@ function PerksStrip() {
     <div className="perks-strip">
       <div className="perk">
         <div className="pico" style={{ background: 'var(--gold-soft)', color: 'var(--gold)' }}><CoinIcon size={14} /></div>
-        <div className="pval">1,000 V</div>
+        <div className="pval">1,000 coins</div>
         <div className="plab">Signup bonus</div>
       </div>
       <div className="perk">
@@ -88,7 +88,7 @@ export function RegisterPage() {
   return (
     <AuthLayout aside={<PerksStrip />}>
       <div className="auth-card">
-        <div className="auth-eyebrow">CREATE ACCOUNT · CLAIM 1,000 V</div>
+        <div className="auth-eyebrow">CREATE ACCOUNT · CLAIM 1,000 coins</div>
         <h1>Join the table.</h1>
         <p className="subtitle">Get 1,000 coins on signup. Daily bonuses, leaderboards, the full game library.</p>
 
@@ -127,7 +127,7 @@ export function RegisterPage() {
           <div style={{ height: 8 }} />
 
           <button type="submit" className="btn btn-primary submit" disabled={loading}>
-            {loading ? <><span className="spinner" />Creating account…</> : 'Create account · claim 1,000 V'}
+            {loading ? <><span className="spinner" />Creating account…</> : 'Create account · claim 1,000 coins'}
           </button>
         </form>
 

@@ -180,7 +180,7 @@ export function PumpPage() {
   let primaryDisabled = busy;
   if (isActive) {
     if (pumps > 0) {
-      primaryLabel = `Cash out · ${Math.floor(betAmount * multiplier).toLocaleString()} V`;
+      primaryLabel = `Cash out · ${Math.floor(betAmount * multiplier).toLocaleString()} coins`;
       onPrimary = () => { void handleCashout(); };
       primaryDisabled = busy;
     } else {
@@ -241,8 +241,8 @@ export function PumpPage() {
               {isActive && !maxedOut && (pumps > 0 ? 'Pump for more — or cash out before it pops.' : 'Pump the balloon to start climbing.')}
               {isActive && maxedOut && 'Balloon maxed — cash out now!'}
               {phase === 'result' && result && (result.won
-                ? `Cashed out ${result.payout.toLocaleString()} V · ${result.pumps} pump${result.pumps === 1 ? '' : 's'}`
-                : `💥 Popped on pump ${result.pumps + 1} — lost ${betAmount.toLocaleString()} V`)}
+                ? `Cashed out ${result.payout.toLocaleString()} coins · ${result.pumps} pump${result.pumps === 1 ? '' : 's'}`
+                : `💥 Popped on pump ${result.pumps + 1} — lost ${betAmount.toLocaleString()} coins`)}
             </div>
 
             <div className="pump-actions">

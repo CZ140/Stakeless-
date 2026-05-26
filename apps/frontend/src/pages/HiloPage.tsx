@@ -179,7 +179,7 @@ export function HiloPage() {
   let primaryDisabled = busy;
   if (isActive) {
     if (streak > 0) {
-      primaryLabel = `Cash out · ${Math.floor(betAmount * multiplier).toLocaleString()} V`;
+      primaryLabel = `Cash out · ${Math.floor(betAmount * multiplier).toLocaleString()} coins`;
       onPrimary = () => { void handleCashout(); };
       primaryDisabled = busy;
     } else {
@@ -240,8 +240,8 @@ export function HiloPage() {
               {isBetting && 'Place a bet to draw your first card'}
               {isActive && (streak > 0 ? 'Higher or lower? Cash out any time.' : 'Will the next card be higher or lower?')}
               {phase === 'result' && result && (result.won
-                ? `Cashed out ${result.payout.toLocaleString()} V · ${result.streak} in a row`
-                : `Busted on ${currentCard ? rankLabel(currentCard.rank) : '—'} — lost ${betAmount.toLocaleString()} V`)}
+                ? `Cashed out ${result.payout.toLocaleString()} coins · ${result.streak} in a row`
+                : `Busted on ${currentCard ? rankLabel(currentCard.rank) : '—'} — lost ${betAmount.toLocaleString()} coins`)}
             </div>
 
             {/* Higher / Lower */}

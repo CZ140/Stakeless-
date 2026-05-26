@@ -111,9 +111,9 @@ export function RpsPage() {
 
   const resultText = (() => {
     if (!showResult) return playing ? 'Rock, paper, scissors…' : 'Pick your throw and shoot';
-    if (r.outcome === 'win') return `${THROW_LABEL[r.choice]} beats ${r.house} — won +${r.profit.toLocaleString()} V`;
+    if (r.outcome === 'win') return `${THROW_LABEL[r.choice]} beats ${r.house} — won +${r.profit.toLocaleString()} coins`;
     if (r.outcome === 'tie') return `Tie — both threw ${r.house} · stake returned`;
-    return `${THROW_LABEL[r.house]} beats ${r.choice} — lost ${betAmount.toLocaleString()} V`;
+    return `${THROW_LABEL[r.house]} beats ${r.choice} — lost ${betAmount.toLocaleString()} coins`;
   })();
   const resultColor = showResult ? (r.outcome === 'win' ? 'var(--win)' : r.outcome === 'loss' ? 'var(--loss)' : 'var(--text-secondary)') : 'var(--text-muted)';
 
