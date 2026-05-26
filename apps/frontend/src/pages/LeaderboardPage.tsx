@@ -36,7 +36,7 @@ function formatValue(tab: TabKey, value: number): string {
 }
 
 export function LeaderboardPage() {
-  const { accessToken } = useAuth();
+  const { accessToken, username } = useAuth();
   const { snapshot, ownRanks, activeTab, setSnapshot, setOwnRanks, setActiveTab } =
     useLeaderboardStore();
   const [isLoading, setIsLoading] = useState(true);
@@ -89,10 +89,10 @@ export function LeaderboardPage() {
           : ownRanks.profit
       : null;
 
-  const ownInTopList =
-    ownRankEntry !== null &&
-    rows !== undefined &&
-    rows.some((_, idx) => idx + 1 === ownRankEntry.rank);
+  // Identify "you" by username (unique) — never by rank position, which collides
+  // on ties and can't tell you apart from whoever happens to sit at your rank.
+  const isYou = (row: { username: string }): boolean => username !== null && row.username === username;
+  const ownInTopList = rows !== undefined && rows.some(isYou);
 
   const top3 = rows?.slice(0, 3) ?? [];
   const rest = rows?.slice(3) ?? [];
@@ -127,16 +127,15 @@ export function LeaderboardPage() {
         <div className="podium">
           {top3.map((p, i) => {
             const kind = PODIUM_KIND[i]!;
-            const rank = i + 1;
-            const isYou = ownRankEntry !== null && rank === ownRankEntry.rank;
+            const mine = isYou(p);
             return (
-              <div key={p.id} className={`podium-card ${kind}${isYou ? ' you' : ''}`}>
+              <div key={p.id} className={`podium-card ${kind}${mine ? ' you' : ''}`}>
                 <div className="pos">{PODIUM_POS[i]}</div>
                 <div className="ava">{initial(p.username)}</div>
                 <div className="pname">
                   <Link to={`/profile/${p.username}`}>{p.username}</Link>
                   <TierBadge level={p.tierLevel} size={12} />
-                  {isYou && <span className="you-tag">YOU</span>}
+                  {mine && <span className="you-tag">YOU</span>}
                 </div>
                 <div className={`amt ${signClass(activeTab, p.value)}`}>
                   {formatValue(activeTab, p.value)}<small>V</small>
@@ -168,16 +167,16 @@ export function LeaderboardPage() {
         ) : (
           rest.map((p, idx) => {
             const rank = idx + 4; // table starts after the podium top 3
-            const isYou = ownRankEntry !== null && rank === ownRankEntry.rank;
+            const mine = isYou(p);
             return (
-              <div key={p.id} className={'lb-row' + (isYou ? ' you' : '')}>
+              <div key={p.id} className={'lb-row' + (mine ? ' you' : '')}>
                 <div className={'rk' + (rank <= 3 ? ' top' : '')}>{rank}</div>
                 <div className="player">
                   <Avatar username={p.username} avatarColor={p.avatarColor} className="ava-sm" />
                   <div>
                     <Link to={`/profile/${p.username}`}>{p.username}</Link>
                     <TierBadge level={p.tierLevel} size={12} />
-                    {isYou && <span className="you-tag">YOU</span>}
+                    {mine && <span className="you-tag">YOU</span>}
                   </div>
                 </div>
                 <div className={`num-cell ${signClass(activeTab, p.value)}`}>

@@ -1,7 +1,7 @@
 import { Router, type IRouter } from 'express';
 import { db } from '../db/index.js';
 import { users } from '../db/schema.js';
-import { desc, asc, eq, sql } from 'drizzle-orm';
+import { desc, asc, eq, gt, sql, type AnyColumn } from 'drizzle-orm';
 import { verifyAccessToken } from '../services/tokenService.js';
 
 export const leaderboardRouter: IRouter = Router();
@@ -45,34 +45,33 @@ leaderboardRouter.get('/', async (req, res) => {
     } | null = null;
 
     if (userId !== null) {
-      const [balRank, wagRank, profRank] = await Promise.all([
-        db
-          .select({
-            rank: sql<number>`rank() over (order by ${users.balance} desc)`.mapWith(Number),
-            value: users.balance,
-          })
-          .from(users)
-          .where(eq(users.id, userId)),
-        db
-          .select({
-            rank: sql<number>`rank() over (order by ${users.totalWagered} desc)`.mapWith(Number),
-            value: users.totalWagered,
-          })
-          .from(users)
-          .where(eq(users.id, userId)),
-        db
-          .select({
-            rank: sql<number>`rank() over (order by ${users.totalProfit} desc)`.mapWith(Number),
-            value: users.totalProfit,
-          })
-          .from(users)
-          .where(eq(users.id, userId)),
-      ]);
-      ownRanks = {
-        balance: balRank[0] ? { rank: balRank[0].rank, value: balRank[0].value } : null,
-        wagered: wagRank[0] ? { rank: wagRank[0].rank, value: wagRank[0].value } : null,
-        profit: profRank[0] ? { rank: profRank[0].rank, value: profRank[0].value } : null,
-      };
+      // Fetch the user's own values, then derive each rank as the standard
+      // competition rank = 1 + (users with a strictly greater value). NOTE: a
+      // `rank() over (...)` window with a `where id = userId` filter would always
+      // return 1, since the window is evaluated over the post-filter single row.
+      const [me] = await db
+        .select({ balance: users.balance, wagered: users.totalWagered, profit: users.totalProfit })
+        .from(users)
+        .where(eq(users.id, userId));
+      if (me) {
+        const rankOf = async (column: AnyColumn, value: number): Promise<number> => {
+          const [row] = await db
+            .select({ ahead: sql<number>`count(*)`.mapWith(Number) })
+            .from(users)
+            .where(gt(column, value));
+          return (row?.ahead ?? 0) + 1;
+        };
+        const [balanceRank, wageredRank, profitRank] = await Promise.all([
+          rankOf(users.balance, me.balance),
+          rankOf(users.totalWagered, me.wagered),
+          rankOf(users.totalProfit, me.profit),
+        ]);
+        ownRanks = {
+          balance: { rank: balanceRank, value: me.balance },
+          wagered: { rank: wageredRank, value: me.wagered },
+          profit: { rank: profitRank, value: me.profit },
+        };
+      }
     }
 
     res.json({ byBalance, byWagered, byProfit, ownRanks });
