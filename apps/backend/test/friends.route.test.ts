@@ -2,6 +2,8 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import request from 'supertest';
 import { createApp } from '../src/app.js';
 import { resetDb, createUser } from './helpers.js';
+import { db } from '../src/db/index.js';
+import { friendships } from '../src/db/schema.js';
 
 const app = createApp();
 
@@ -262,5 +264,14 @@ describe('Friends routes', () => {
     const a = await createUser({ username: 'alice' });
     const b = await createUser({ username: 'bob' });
     expect((await auth('delete', `/api/friends/${b.user.id}/block`, a.token).send()).status).toBe(404);
+  });
+
+  it('rejects a self-friendship row at the database level (CHECK constraint, migration 0010)', async () => {
+    // The service blocks self-friend (CANNOT_FRIEND_SELF) before the DB; this
+    // proves the belt-and-suspenders CHECK also rejects a direct insert.
+    const a = await createUser({ username: 'alice' });
+    await expect(
+      db.insert(friendships).values({ requesterId: a.user.id, addresseeId: a.user.id, status: 'pending' }),
+    ).rejects.toThrow();
   });
 });

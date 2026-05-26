@@ -8,6 +8,7 @@ import {
   text,
   boolean,
   uniqueIndex,
+  check,
 } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 
@@ -140,6 +141,9 @@ export const friendships = pgTable(
   (t) => ({
     // One row per ordered pair.
     uniquePair: uniqueIndex('friendship_unique_pair').on(t.requesterId, t.addresseeId),
+    // Defense-in-depth: a self-friendship is also blocked in the service layer
+    // (CANNOT_FRIEND_SELF / CANNOT_BLOCK_SELF), but enforce it at the DB too.
+    noSelf: check('friendship_no_self', sql`${t.requesterId} <> ${t.addresseeId}`),
   }),
 );
 
