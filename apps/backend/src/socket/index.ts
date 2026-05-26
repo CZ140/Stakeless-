@@ -21,6 +21,7 @@ import { isGroupMember, computeGroupLeaderboard } from '../services/groupService
 import { attachPokerRealtime } from './poker.js';
 import { tableManager } from '../services/poker/manager.js';
 import { sanitizeChat, allowChat, addChatMessage, chatHistory } from '../services/poker/chat.js';
+import { handHistory } from '../services/poker/history.js';
 
 interface LeaderboardRow {
   id: number;
@@ -72,6 +73,8 @@ interface ServerToClientEvents {
   // Table chat: one new line to the room, plus the recent backlog on subscribe.
   'poker:chat': (data: { tableId: number; message: PokerChatMessage }) => void;
   'poker:chathistory': (data: { tableId: number; messages: PokerChatMessage[] }) => void;
+  // Recent finished hands, sent on subscribe (live hands arrive via poker:result).
+  'poker:handhistory': (data: { tableId: number; hands: PokerHandResult[] }) => void;
 }
 
 interface ClientToServerEvents {
@@ -154,8 +157,9 @@ export function createSocketServer(server: HttpServer): void {
             if (hand) io.to(socket.id).emit('poker:hand', { tableId, hand });
           }
         }
-        // Send the recent chat backlog so the panel isn't empty on arrival.
+        // Send the recent chat + hand-history backlog so the panels aren't empty.
         io.to(socket.id).emit('poker:chathistory', { tableId, messages: chatHistory(tableId) });
+        io.to(socket.id).emit('poker:handhistory', { tableId, hands: handHistory(tableId) });
       } catch (err) {
         console.error('[socket] poker:subscribe failed:', err);
       }

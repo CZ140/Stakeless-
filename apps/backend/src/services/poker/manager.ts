@@ -8,6 +8,8 @@ import { db } from '../../db/index.js';
 import { users, pokerTables, pokerSeats, pokerInvites, groupMembers } from '../../db/schema.js';
 import { PokerTable } from './table.js';
 import { decideBotAction, BOT_NAMES } from './bot.js';
+import { recordHand, clearHistory } from './history.js';
+import { clearChat } from './chat.js';
 import { areFriends } from '../friendService.js';
 import { isGroupMember } from '../groupService.js';
 import { POKER } from '@gambling/shared';
@@ -441,6 +443,8 @@ class TableManager {
   // Persist stacks, cash out leavers + busted seats, fire result hooks. Leaves the
   // table in 'showdown'; P4 schedules the next hand via startNextHandIfReady.
   private async settle(tableId: number, eng: PokerTable): Promise<void> {
+    // Record the just-finished hand for the table's history (in-memory, capped).
+    if (eng.lastResult) recordHand(tableId, eng.lastResult);
     const humans = eng.occupiedSeats().filter((s) => !s.isBot);
     // Persist every human's post-hand stack.
     await Promise.all(
@@ -470,10 +474,12 @@ class TableManager {
     if (this.hasHuman(eng)) this.hooks.onHandEnded?.(tableId);
   }
 
-  // Test helper: drop all in-memory engines (the DB is truncated between tests, so
-  // cached engines keyed by reused table ids must be cleared too).
+  // Test helper: drop all in-memory engines + their chat/history (the DB is
+  // truncated between tests, so cached state keyed by reused table ids must go too).
   _resetAll(): void {
     this.engines.clear();
+    clearHistory();
+    clearChat();
   }
   _engine(tableId: number): PokerTable | undefined {
     return this.engines.get(tableId);

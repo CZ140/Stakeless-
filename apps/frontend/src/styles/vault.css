@@ -2966,6 +2966,20 @@ body::before {
 .pkr-chat-input input:focus { outline: none; border-color: var(--accent); }
 .pkr-chat-input .btn { padding: 8px 16px; }
 
+/* Hand history modal */
+.pkr-hist-list { display: flex; flex-direction: column; gap: 10px; max-height: 60vh; overflow-y: auto; margin-top: 4px; }
+.pkr-hist-row { padding: 12px 14px; background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--r-md); }
+.pkr-hist-top { display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: var(--text-secondary); }
+.pkr-hist-pot { color: var(--gold); }
+.pkr-hist-board { display: flex; gap: 4px; margin: 8px 0; min-height: 20px; align-items: center; }
+.pkr-hist-win { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: var(--fs-sm); }
+.pkr-hist-winner { color: var(--text); }
+.pkr-hist-amt { color: var(--accent); font-weight: 700; }
+.pkr-hist-hand { color: var(--text-muted); }
+.pkr-hist-shown { display: flex; flex-wrap: wrap; gap: 10px 16px; margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border); }
+.pkr-hist-show { display: flex; align-items: center; gap: 5px; }
+.pkr-hist-show-name { font-size: 11px; color: var(--text-muted); margin-right: 2px; }
+
 @media (max-width: 640px) {
   .pkr-seat { min-width: 88px; }
   .pkr-card { width: 26px; height: 38px; }

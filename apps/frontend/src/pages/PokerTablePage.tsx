@@ -36,6 +36,7 @@ export function PokerTablePage() {
 
   const [buyInSeat, setBuyInSeat] = useState<number | null>(null);
   const [inviting, setInviting] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
   const [now, setNow] = useState(Date.now());
   const prevStreetCards = useRef(0);
 
@@ -68,9 +69,13 @@ export function PokerTablePage() {
     function onResult(d: { tableId: number; result: PokerHandResult }) {
       if (d.tableId !== tableId) return;
       usePokerStore.getState().setResult(d.result);
+      usePokerStore.getState().addHandResult(d.result); // accumulate into the history log
       const mine = d.result.seats.find((s) => s.username === username);
       if (mine && mine.won > 0) sound.winMed();
       window.setTimeout(() => usePokerStore.getState().setResult(null), 4500);
+    }
+    function onHandHistory(d: { tableId: number; hands: PokerHandResult[] }) {
+      if (d.tableId === tableId) usePokerStore.getState().setHandHistory(d.hands);
     }
 
     function onChat(d: { tableId: number; message: PokerChatMessage }) {
@@ -86,6 +91,7 @@ export function PokerTablePage() {
     socket.on('poker:result', onResult);
     socket.on('poker:chat', onChat);
     socket.on('poker:chathistory', onChatHistory);
+    socket.on('poker:handhistory', onHandHistory);
     socket.emit('poker:subscribe', tableId);
     return () => {
       socket.emit('poker:unsubscribe', tableId);
@@ -94,6 +100,7 @@ export function PokerTablePage() {
       socket.off('poker:result', onResult);
       socket.off('poker:chat', onChat);
       socket.off('poker:chathistory', onChatHistory);
+      socket.off('poker:handhistory', onHandHistory);
       usePokerStore.getState().reset();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -166,12 +173,11 @@ export function PokerTablePage() {
           <h1 className="h-title">{table.name}</h1>
           <p className="h-subtitle fg-mono">{table.smallBlind}/{table.bigBlind} · hand #{table.handNumber} · {table.street}</p>
         </div>
-        {iAmSeated && (
-          <div style={{ display: 'flex', gap: 8 }}>
-            <button className="btn btn-outline" onClick={() => setInviting(true)}>+ Invite</button>
-            <button className="btn btn-ghost" onClick={leave}>Leave table</button>
-          </div>
-        )}
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button className="btn btn-outline" onClick={() => setShowHistory(true)}>History</button>
+          {iAmSeated && <button className="btn btn-outline" onClick={() => setInviting(true)}>+ Invite</button>}
+          {iAmSeated && <button className="btn btn-ghost" onClick={leave}>Leave table</button>}
+        </div>
       </div>
 
       <div className="pkr-felt">
@@ -236,7 +242,69 @@ export function PokerTablePage() {
         <BuyInModal table={table} seatIndex={buyInSeat} onClose={() => setBuyInSeat(null)} tableId={tableId} />
       )}
       {inviting && <InviteModal table={table} tableId={tableId} onClose={() => setInviting(false)} />}
+      {showHistory && <HistoryModal onClose={() => setShowHistory(false)} />}
     </AppShell>
+  );
+}
+
+// Recent finished hands at this table (in-memory, last ~30). Backlog arrives on
+// subscribe (poker:handhistory); live hands are appended as poker:result fires.
+function HistoryModal({ onClose }: { onClose: () => void }) {
+  const history = usePokerStore((s) => s.history);
+  return (
+    <div className="fg-modal-shade" onClick={onClose}>
+      <div className="fg-modal" onClick={(e) => e.stopPropagation()}>
+        <div className="fg-modal-head">
+          <div className="section-title">Hand history</div>
+          <button className="fg-icon-btn" onClick={onClose} aria-label="Close"><XIcon size={14} /></button>
+        </div>
+        <div className="pkr-hist-list">
+          {history.length === 0 ? (
+            <div className="fg-picker-empty">No hands yet — play a few and they'll show up here.</div>
+          ) : (
+            history.map((h) => <HandRow key={h.handNumber} h={h} />)
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function HandRow({ h }: { h: PokerHandResult }) {
+  const winners = h.seats.filter((s) => s.won > 0);
+  const shown = h.seats.filter((s) => s.holeCards && s.holeCards.length > 0);
+  return (
+    <div className="pkr-hist-row">
+      <div className="pkr-hist-top fg-mono">
+        <span>Hand #{h.handNumber}</span>
+        <span className="pkr-hist-pot">POT {h.potTotal.toLocaleString()}{h.showdown ? '' : ' · no showdown'}</span>
+      </div>
+      <div className="pkr-hist-board">
+        {h.board.length > 0
+          ? h.board.map((c, i) => <PlayingCard key={i} card={c} />)
+          : <span className="fg-dim" style={{ fontSize: 12 }}>(folded preflop)</span>}
+      </div>
+      <div className="pkr-hist-win">
+        {winners.length > 0
+          ? winners.map((w) => (
+              <span className="pkr-hist-winner" key={w.seatIndex}>
+                {w.username} <span className="pkr-hist-amt">+{w.won.toLocaleString()}</span>
+                {w.handName && <span className="pkr-hist-hand"> · {w.handName}</span>}
+              </span>
+            ))
+          : <span className="fg-dim">—</span>}
+      </div>
+      {h.showdown && shown.length > 0 && (
+        <div className="pkr-hist-shown">
+          {shown.map((s) => (
+            <span className="pkr-hist-show" key={s.seatIndex}>
+              <span className="pkr-hist-show-name">{s.username}</span>
+              {s.holeCards!.map((c, i) => <PlayingCard key={i} card={c} />)}
+            </span>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 
