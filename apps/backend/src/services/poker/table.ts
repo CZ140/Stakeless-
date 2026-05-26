@@ -464,6 +464,21 @@ export class PokerTable {
     return order;
   }
 
+  // Between hands (street still 'showdown'), let a player who didn't fold show
+  // their hole cards voluntarily — e.g. the winner of an uncontested pot revealing
+  // a bluff. Adds them to `shown` so toPublicState exposes the cards, and reflects
+  // it in the finished-hand result. Returns true if newly revealed.
+  revealSeat(seatIndex: number): boolean {
+    if (this.street !== 'showdown') return false;
+    const s = this.seats[seatIndex];
+    if (!s || !s.inHand || s.status === 'folded' || s.holeCards.length === 0) return false;
+    if (this.shown.has(seatIndex)) return false;
+    this.shown.add(seatIndex);
+    const rs = this.lastResult?.seats.find((x) => x.seatIndex === seatIndex);
+    if (rs) rs.holeCards = [...s.holeCards];
+    return true;
+  }
+
   // ─── Views ────────────────────────────────────────────────────────────────
   toPublicState(): PublicTableState {
     const seats = this.seats.map((s, i) => {

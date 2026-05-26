@@ -11,7 +11,48 @@ import { useAuth } from '../contexts/AuthContext';
 import { usePokerStore } from '../stores/pokerStore';
 import { useFriendsStore } from '../stores/friendsStore';
 import { XIcon } from '../components/vault/icons';
-import { legalActions, POKER_CHAT_MAX_LEN, type PublicTableState, type PrivateHand, type PokerHandResult, type PublicSeat, type PokerChatMessage } from '@gambling/shared';
+import { legalActions, evaluateHand, HAND_CATEGORY, POKER_CHAT_MAX_LEN, type PublicTableState, type PrivateHand, type PokerHandResult, type PublicSeat, type PokerChatMessage, type Card } from '@gambling/shared';
+
+// Friendly rank labels for the "your hand" readout.
+const RANK_NAME: Record<number, string> = {
+  2: 'Two', 3: 'Three', 4: 'Four', 5: 'Five', 6: 'Six', 7: 'Seven', 8: 'Eight',
+  9: 'Nine', 10: 'Ten', 11: 'Jack', 12: 'Queen', 13: 'King', 14: 'Ace',
+};
+const plural = (r: number): string => RANK_NAME[r]! + (r === 6 ? 'es' : 's'); // Sixes, else +s
+
+// Describe the player's current best hand from hole + board, so they don't have to
+// read the board themselves. Preflop (2 cards) falls back to high-card/pocket-pair.
+function describeHand(hole: Card[], board: Card[]): string {
+  const all = [...hole, ...board];
+  if (all.length < 5) {
+    if (hole.length === 2 && hole[0]!.rank === hole[1]!.rank) return `Pocket ${plural(hole[0]!.rank)}`;
+    const ranks = hole.map((c) => c.rank).sort((a, b) => b - a);
+    return ranks.length === 2 ? `${RANK_NAME[ranks[0]!]}-${RANK_NAME[ranks[1]!]} high` : `${RANK_NAME[ranks[0]!]} high`;
+  }
+  const { category } = evaluateHand(all);
+  const counts = new Map<number, number>();
+  for (const c of all) counts.set(c.rank, (counts.get(c.rank) ?? 0) + 1);
+  const entries = [...counts.entries()];
+  const pairs = entries.filter(([, n]) => n === 2).map(([r]) => r).sort((a, b) => b - a);
+  const trips = entries.filter(([, n]) => n === 3).map(([r]) => r).sort((a, b) => b - a);
+  const quad = entries.find(([, n]) => n === 4)?.[0];
+  const maxRank = Math.max(...all.map((c) => c.rank));
+  switch (category) {
+    case HAND_CATEGORY.PAIR: return `Pair of ${plural(pairs[0] ?? maxRank)}`;
+    case HAND_CATEGORY.TWO_PAIR: return `Two pair, ${plural(pairs[0]!)} & ${plural(pairs[1]!)}`;
+    case HAND_CATEGORY.TRIPS: return `Trip ${plural(trips[0]!)}`;
+    case HAND_CATEGORY.STRAIGHT: return 'Straight';
+    case HAND_CATEGORY.FLUSH: return 'Flush';
+    case HAND_CATEGORY.FULL_HOUSE: {
+      const three = trips[0]!;
+      const over = pairs[0] ?? trips.filter((r) => r !== three)[0]!;
+      return `${plural(three)} full of ${plural(over)}`;
+    }
+    case HAND_CATEGORY.QUADS: return `Quad ${plural(quad ?? maxRank)}`;
+    case HAND_CATEGORY.STRAIGHT_FLUSH: return 'Straight flush';
+    default: return `${RANK_NAME[maxRank]} high`;
+  }
+}
 
 // Fixed seat anchors around the felt (percent of the table box). Seat 0 sits at
 // the bottom (the usual hero position); the rest fan out clockwise.
@@ -72,7 +113,7 @@ export function PokerTablePage() {
       usePokerStore.getState().addHandResult(d.result); // accumulate into the history log
       const mine = d.result.seats.find((s) => s.username === username);
       if (mine && mine.won > 0) sound.winMed();
-      window.setTimeout(() => usePokerStore.getState().setResult(null), 4500);
+      window.setTimeout(() => usePokerStore.getState().setResult(null), 5000); // matches the inter-hand pause
     }
     function onHandHistory(d: { tableId: number; hands: PokerHandResult[] }) {
       if (d.tableId === tableId) usePokerStore.getState().setHandHistory(d.hands);
@@ -124,6 +165,10 @@ export function PokerTablePage() {
   const mySeatObj = table.seats.find((s) => s.username === username && s.userId !== null) ?? null;
   const iAmSeated = mySeatObj !== null;
   const isMyTurn = iAmSeated && table.actingSeat === mySeatObj!.seatIndex;
+  // I can show my cards in the post-hand window if I reached the end without folding
+  // and wasn't already revealed (i.e. I won uncontested — no showdown reveal).
+  const myResultSeat = lastResult?.seats.find((s) => s.username === username) ?? null;
+  const canReveal = !!lastResult && !lastResult.showdown && !!myResultSeat && !myResultSeat.folded && myResultSeat.holeCards == null;
 
   async function act(type: 'fold' | 'check' | 'call' | 'raise', amount?: number) {
     sound.chip();
@@ -141,6 +186,16 @@ export function PokerTablePage() {
       navigate('/games/poker');
     } catch {
       toast.error('Could not leave');
+    }
+  }
+
+  async function reveal() {
+    try {
+      await apiClient.post(`/poker/tables/${tableId}/reveal`);
+      sound.chip();
+    } catch (e) {
+      const ax = e as { response?: { data?: { error?: string } } };
+      toast.error(ax.response?.data?.error ?? 'Could not reveal');
     }
   }
 
@@ -222,17 +277,23 @@ export function PokerTablePage() {
       )}
       {iAmSeated && !isMyTurn && (
         <div className="pkr-actionbar idle fg-mono">
-          {table.street === 'idle' || table.street === 'showdown' ? 'Waiting for the next hand…' : 'Waiting for your turn…'}
+          {canReveal && <button className="btn btn-outline" onClick={reveal}>Show cards</button>}
+          <span>{table.street === 'idle' || table.street === 'showdown' ? 'Waiting for the next hand…' : 'Waiting for your turn…'}</span>
         </div>
       )}
       {!iAmSeated && (
         <div className="pkr-actionbar idle fg-mono">Tap an empty seat to sit down.</div>
       )}
 
-      {/* My hole cards */}
+      {/* My hole cards + a plain-English readout of my current best hand */}
       {iAmSeated && myHole && myHole.length > 0 && (
         <div className="pkr-myhand">
-          {myHole.map((c, i) => <PlayingCard key={i} card={c} size="lg" />)}
+          {table.street !== 'idle' && mySeatObj?.status !== 'folded' && (
+            <div className="pkr-handname fg-mono">{describeHand(myHole, table.board)}</div>
+          )}
+          <div className="pkr-myhand-cards">
+            {myHole.map((c, i) => <PlayingCard key={i} card={c} size="lg" />)}
+          </div>
         </div>
       )}
 

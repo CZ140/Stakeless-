@@ -33,6 +33,8 @@ function handlePokerError(err: unknown, res: Response): boolean {
     USER_NOT_FOUND: [404, 'No user with that username'],
     CANNOT_INVITE_SELF: [400, 'You cannot invite yourself'],
     NOT_FRIENDS: [403, 'You can only invite friends'],
+    HAND_IN_PROGRESS: [409, 'Wait until the hand is over'],
+    CANNOT_REVEAL: [400, 'Nothing to reveal'],
   };
   if (code && map[code]) {
     const [status, message] = map[code];
@@ -184,6 +186,23 @@ pokerRouter.post('/tables/:id/invite', socialLimiter, requireAuth, validate(invi
   } catch (err) {
     if (handlePokerError(err, res)) return;
     console.error('[poker] invite error:', err);
+    res.status(500).json({ error: 'An unexpected error occurred' });
+  }
+});
+
+// POST /api/poker/tables/:id/reveal — voluntarily show your cards between hands
+pokerRouter.post('/tables/:id/reveal', requireAuth, async (req, res) => {
+  const id = parseId(req.params.id);
+  if (id === null) {
+    res.status(400).json({ error: 'Invalid table id' });
+    return;
+  }
+  try {
+    await tableManager.reveal(req.user!.id, id);
+    res.json(await tableManager.getView(req.user!.id, id));
+  } catch (err) {
+    if (handlePokerError(err, res)) return;
+    console.error('[poker] reveal error:', err);
     res.status(500).json({ error: 'An unexpected error occurred' });
   }
 });

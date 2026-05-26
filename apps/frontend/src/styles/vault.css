@@ -2920,7 +2920,9 @@ body::before {
 }
 
 /* My hole cards + action bar */
-.pkr-myhand { display: flex; justify-content: center; gap: 8px; margin-top: 16px; }
+.pkr-myhand { display: flex; flex-direction: column; align-items: center; gap: 8px; margin-top: 16px; }
+.pkr-myhand-cards { display: flex; gap: 8px; }
+.pkr-handname { font-size: var(--fs-sm); color: var(--gold); letter-spacing: 0.04em; font-weight: 600; }
 .pkr-actionbar {
   display: flex; align-items: center; gap: 14px; flex-wrap: wrap; justify-content: center;
   margin-top: 16px; padding: 14px 18px; background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--r-lg);

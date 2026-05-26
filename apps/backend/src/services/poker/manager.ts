@@ -337,6 +337,19 @@ class TableManager {
     return true;
   }
 
+  // Voluntarily show your hole cards in the post-hand window (between hands). Only
+  // a seated player who reached the end of the hand without folding can reveal;
+  // re-pushes state (felt shows the cards) + the updated result.
+  async reveal(userId: number, tableId: number): Promise<void> {
+    const eng = await this.loadEngine(tableId);
+    if (eng.isHandInProgress()) throw err('HAND_IN_PROGRESS', 'Wait until the hand is over');
+    const seat = eng.seatOfUser(userId);
+    if (!seat) throw err('NOT_SEATED', 'You are not at this table');
+    if (!eng.revealSeat(seat.seatIndex)) throw err('CANNOT_REVEAL', 'Nothing to reveal');
+    this.hooks.onStateChange?.(tableId);
+    this.hooks.onHandResult?.(tableId);
+  }
+
   // The acting seat ran out of time: auto-check if legal, otherwise fold.
   async timeoutCurrentActor(tableId: number): Promise<void> {
     const eng = this.engines.get(tableId);

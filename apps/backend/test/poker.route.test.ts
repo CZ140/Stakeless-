@@ -203,6 +203,33 @@ describe('Poker routes', () => {
     void stranger;
   });
 
+  it('lets the uncontested winner reveal their cards, blocking folded/in-hand reveals', async () => {
+    const a = await createUser({ username: 'alice', balance: 1000 });
+    const b = await createUser({ username: 'bob', balance: 1000 });
+    const id = await createTable(a.token);
+    await auth('post', `/api/poker/tables/${id}/sit`, a.token).send({ seatIndex: 0, buyIn: 1000 });
+    await auth('post', `/api/poker/tables/${id}/sit`, b.token).send({ seatIndex: 1, buyIn: 1000 }); // heads-up hand starts
+
+    // Can't reveal mid-hand.
+    expect((await auth('post', `/api/poker/tables/${id}/reveal`, a.token).send()).status).toBe(409);
+
+    // Alice (SB) folds → Bob wins uncontested (no showdown), so Bob's cards stay hidden.
+    await auth('post', `/api/poker/tables/${id}/action`, a.token).send({ type: 'fold' });
+    const beforeReveal = await auth('get', `/api/poker/tables/${id}`, a.token);
+    expect(beforeReveal.body.table.seats[1].revealedCards).toBeUndefined();
+
+    // A folded player has nothing to reveal.
+    expect((await auth('post', `/api/poker/tables/${id}/reveal`, a.token).send()).status).toBe(400);
+
+    // The winner can voluntarily show — now everyone sees Bob's two cards.
+    const revealed = await auth('post', `/api/poker/tables/${id}/reveal`, b.token).send();
+    expect(revealed.status).toBe(200);
+    expect(revealed.body.table.seats[1].revealedCards).toHaveLength(2);
+    // And a spectator's view reflects it too.
+    const spectate = await auth('get', `/api/poker/tables/${id}`, a.token);
+    expect(spectate.body.table.seats[1].revealedCards).toHaveLength(2);
+  });
+
   describe('private-table join authorization', () => {
     it('lets the owner sit at their own private table but blocks an outsider', async () => {
       const owner = await createUser({ username: 'owner', balance: 1000 });

@@ -9,7 +9,7 @@ import type { Server } from 'socket.io';
 import { tableManager } from '../services/poker/manager.js';
 import { POKER } from '@gambling/shared';
 
-const NEXT_HAND_DELAY_MS = 4000;
+const NEXT_HAND_DELAY_MS = 5000; // also the post-hand window to voluntarily reveal cards
 const BOT_MIN_MS = 800;
 const BOT_MAX_MS = 1900;
 
