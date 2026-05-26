@@ -4,6 +4,7 @@ import { BrowserRouter } from 'react-router-dom';
 import { Toaster } from 'sonner';
 import './styles/vault.css';
 import { AuthProvider } from './contexts/AuthContext';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import { TierUpModal } from './components/vault/TierUpModal';
 import App from './App.tsx';
 import { apiClient } from './api/client';
@@ -34,12 +35,14 @@ if (!rootElement) throw new Error('Root element not found');
 
 createRoot(rootElement).render(
   <StrictMode>
-    <BrowserRouter>
-      <AuthProvider>
-        <Toaster position="top-right" richColors />
-        <TierUpModal />
-        <App />
-      </AuthProvider>
-    </BrowserRouter>
+    <ErrorBoundary>
+      <BrowserRouter>
+        <AuthProvider>
+          <Toaster position="top-right" richColors />
+          <TierUpModal />
+          <App />
+        </AuthProvider>
+      </BrowserRouter>
+    </ErrorBoundary>
   </StrictMode>,
 );

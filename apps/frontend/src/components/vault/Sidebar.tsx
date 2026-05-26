@@ -24,6 +24,7 @@ import {
   LogoutIcon,
 } from './icons';
 import { useFriendsStore } from '../../stores/friendsStore';
+import { useSocketStatus } from '../../hooks/useSocketStatus';
 
 type NavEntry = {
   to: string;
@@ -52,6 +53,7 @@ const games: NavEntry[] = [
 
 export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   const { username, signOut } = useAuth();
+  const connected = useSocketStatus();
   const incomingCount = useFriendsStore((s) => s.incoming.length);
   const account: NavEntry[] = [
     { to: '/leaderboard', label: 'Leaderboard', Icon: LeaderboardIcon },
@@ -104,9 +106,13 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
       </nav>
 
       <div className="sidebar-foot">
-        <span>
-          <span className="status-dot" />
-          ALL SYSTEMS LIVE
+        <span title={connected ? 'Realtime connection active' : 'Reconnecting to the server…'}>
+          <span
+            className="status-dot"
+            // Offline: override the green/pulse with a muted amber dot (no vault.css change).
+            style={connected ? undefined : { background: '#e0a23c', boxShadow: 'none', animation: 'none' }}
+          />
+          {connected ? 'LIVE' : 'RECONNECTING…'}
         </span>
         <span>V 1.0.0</span>
       </div>
