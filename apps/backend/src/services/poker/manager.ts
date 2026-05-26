@@ -52,11 +52,51 @@ class TableManager {
   private meta = new Map<number, TableMeta>();
   hooks: ManagerHooks = {};
 
-  // Build (or fetch) the live engine for a table, seating the persisted humans.
-  private async loadEngine(tableId: number): Promise<PokerTable> {
-    const existing = this.engines.get(tableId);
-    if (existing) return existing;
+  // Per-table async mutex. Every engine-mutating method runs inside its table's
+  // lock so two async operations can't interleave on the same hand — e.g. a human's
+  // act() and the firing turn-timer both resolving the same turn (each does
+  // `await loadEngine()` before mutating, opening a race window without this).
+  // Implemented as a promise chain keyed by tableId: each queued op runs only after
+  // the previous one fully settles.
+  private locks = new Map<number, Promise<unknown>>();
+  // In-flight loadEngine promises, so concurrent first-loads of the same table
+  // share one build instead of each constructing (and overwriting) an engine.
+  private loading = new Map<number, Promise<PokerTable>>();
 
+  private withLock<T>(tableId: number, fn: () => Promise<T>): Promise<T> {
+    const prev = this.locks.get(tableId) ?? Promise.resolve();
+    // Run fn after prev settles (success OR failure — a failed op must not stall
+    // the queue). The caller still sees fn's own rejection via `result`.
+    const result = prev.then(
+      () => fn(),
+      () => fn(),
+    );
+    // Store a never-rejecting tail so the chain keeps flowing.
+    this.locks.set(
+      tableId,
+      result.then(
+        () => undefined,
+        () => undefined,
+      ),
+    );
+    return result;
+  }
+
+  // Fetch the live engine, building (and caching) it once on first access. Concurrent
+  // first-loads share a single in-flight build so they can't each construct an engine
+  // and clobber the other's seating.
+  private loadEngine(tableId: number): Promise<PokerTable> {
+    const existing = this.engines.get(tableId);
+    if (existing) return Promise.resolve(existing);
+    const inflight = this.loading.get(tableId);
+    if (inflight) return inflight;
+    const build = this.buildEngine(tableId).finally(() => this.loading.delete(tableId));
+    this.loading.set(tableId, build);
+    return build;
+  }
+
+  // Build the live engine for a table, seating the persisted humans.
+  private async buildEngine(tableId: number): Promise<PokerTable> {
     const [cfg] = await db.select().from(pokerTables).where(eq(pokerTables.id, tableId));
     if (!cfg) throw err('NOT_FOUND', 'Table not found');
     this.meta.set(tableId, { botTarget: cfg.botTarget, maxBuyIn: cfg.maxBuyIn, bigBlind: cfg.bigBlind });
@@ -202,7 +242,10 @@ class TableManager {
   }
 
   // ─── Sit / leave (money) ─────────────────────────────────────────────────────
-  async sit(userId: number, tableId: number, seatIndex: number, buyIn: number): Promise<void> {
+  sit(userId: number, tableId: number, seatIndex: number, buyIn: number): Promise<void> {
+    return this.withLock(tableId, () => this.sitLocked(userId, tableId, seatIndex, buyIn));
+  }
+  private async sitLocked(userId: number, tableId: number, seatIndex: number, buyIn: number): Promise<void> {
     const [cfg] = await db.select().from(pokerTables).where(eq(pokerTables.id, tableId));
     if (!cfg) throw err('NOT_FOUND', 'Table not found');
     if (seatIndex < 0 || seatIndex >= cfg.maxSeats) throw err('BAD_SEAT', 'Invalid seat');
@@ -236,7 +279,10 @@ class TableManager {
     this.hooks.onStateChange?.(tableId);
   }
 
-  async leave(userId: number, tableId: number): Promise<{ cashedOut: number }> {
+  leave(userId: number, tableId: number): Promise<{ cashedOut: number }> {
+    return this.withLock(tableId, () => this.leaveLocked(userId, tableId));
+  }
+  private async leaveLocked(userId: number, tableId: number): Promise<{ cashedOut: number }> {
     const eng = await this.loadEngine(tableId);
     const seat = eng.seatOfUser(userId);
     if (!seat) throw err('NOT_SEATED', 'You are not at this table');
@@ -290,7 +336,10 @@ class TableManager {
   }
 
   // ─── Actions ────────────────────────────────────────────────────────────────
-  async act(userId: number, tableId: number, action: PokerAction): Promise<void> {
+  act(userId: number, tableId: number, action: PokerAction): Promise<void> {
+    return this.withLock(tableId, () => this.actLocked(userId, tableId, action));
+  }
+  private async actLocked(userId: number, tableId: number, action: PokerAction): Promise<void> {
     const eng = await this.loadEngine(tableId);
     const seat = eng.seatOfUser(userId);
     if (!seat) throw err('NOT_SEATED', 'You are not at this table');
@@ -312,9 +361,14 @@ class TableManager {
 
   // Apply the current bot's decision (called by the realtime layer on a delay, or
   // synchronously by tests). Returns false if the actor isn't a bot.
-  async runBotAction(tableId: number): Promise<boolean> {
+  runBotAction(tableId: number, expectedSeq?: number): Promise<boolean> {
+    return this.withLock(tableId, () => this.runBotActionLocked(tableId, expectedSeq));
+  }
+  private async runBotActionLocked(tableId: number, expectedSeq?: number): Promise<boolean> {
     const eng = this.engines.get(tableId);
     if (!eng || eng.actingIndex === null) return false;
+    // Stale bot timer: the turn was already resolved (someone acted) since arming.
+    if (expectedSeq !== undefined && eng.actionSeq !== expectedSeq) return false;
     const seat = eng.occupiedSeats().find((s) => s.seatIndex === eng.actingIndex);
     if (!seat || !seat.isBot) return false;
     const legal = eng.legalFor(seat.seatIndex);
@@ -340,7 +394,10 @@ class TableManager {
   // Voluntarily show your hole cards in the post-hand window (between hands). Only
   // a seated player who reached the end of the hand without folding can reveal;
   // re-pushes state (felt shows the cards) + the updated result.
-  async reveal(userId: number, tableId: number): Promise<void> {
+  reveal(userId: number, tableId: number): Promise<void> {
+    return this.withLock(tableId, () => this.revealLocked(userId, tableId));
+  }
+  private async revealLocked(userId: number, tableId: number): Promise<void> {
     const eng = await this.loadEngine(tableId);
     if (eng.isHandInProgress()) throw err('HAND_IN_PROGRESS', 'Wait until the hand is over');
     const seat = eng.seatOfUser(userId);
@@ -351,9 +408,14 @@ class TableManager {
   }
 
   // The acting seat ran out of time: auto-check if legal, otherwise fold.
-  async timeoutCurrentActor(tableId: number): Promise<void> {
+  timeoutCurrentActor(tableId: number, expectedSeq?: number): Promise<void> {
+    return this.withLock(tableId, () => this.timeoutCurrentActorLocked(tableId, expectedSeq));
+  }
+  private async timeoutCurrentActorLocked(tableId: number, expectedSeq?: number): Promise<void> {
     const eng = this.engines.get(tableId);
     if (!eng || eng.actingIndex === null) return;
+    // Stale turn timer: the player already acted (or the hand moved on) since arming.
+    if (expectedSeq !== undefined && eng.actionSeq !== expectedSeq) return;
     const la = eng.legalFor(eng.actingIndex);
     eng.applyAction(eng.actingIndex, la.canCheck ? { type: 'check' } : { type: 'fold' });
     await this.afterAction(tableId, eng);
@@ -375,7 +437,10 @@ class TableManager {
   // seated player (click an empty seat → "+ Bot"); they have a synthetic negative
   // userId and a house-funded stack and are never persisted. Adding the player
   // that brings the table to two may kick off the first hand.
-  async addBot(userId: number, tableId: number, seatIndex: number): Promise<void> {
+  addBot(userId: number, tableId: number, seatIndex: number): Promise<void> {
+    return this.withLock(tableId, () => this.addBotLocked(userId, tableId, seatIndex));
+  }
+  private async addBotLocked(userId: number, tableId: number, seatIndex: number): Promise<void> {
     const eng = await this.loadEngine(tableId);
     if (!eng.seatOfUser(userId)) throw err('NOT_SEATED', 'Sit down before adding bots');
     if (seatIndex < 0 || seatIndex >= eng.config.maxSeats) throw err('BAD_SEAT', 'Invalid seat');
@@ -389,7 +454,10 @@ class TableManager {
 
   // Remove a bot from a seat. Mid-hand the bot folds and is removed at hand end;
   // otherwise it leaves immediately. Only a seated player may manage bots.
-  async removeBot(userId: number, tableId: number, seatIndex: number): Promise<void> {
+  removeBot(userId: number, tableId: number, seatIndex: number): Promise<void> {
+    return this.withLock(tableId, () => this.removeBotLocked(userId, tableId, seatIndex));
+  }
+  private async removeBotLocked(userId: number, tableId: number, seatIndex: number): Promise<void> {
     const eng = await this.loadEngine(tableId);
     if (!eng.seatOfUser(userId)) throw err('NOT_SEATED', 'You are not at this table');
     const seat = eng.occupiedSeats().find((s) => s.seatIndex === seatIndex);
@@ -444,7 +512,10 @@ class TableManager {
   }
 
   // Called by P4 (after a short delay) or directly by tests to deal the next hand.
-  async startNextHandIfReady(tableId: number): Promise<boolean> {
+  startNextHandIfReady(tableId: number): Promise<boolean> {
+    return this.withLock(tableId, () => this.startNextHandIfReadyLocked(tableId));
+  }
+  private async startNextHandIfReadyLocked(tableId: number): Promise<boolean> {
     const eng = await this.loadEngine(tableId);
     if (!eng.canStartHand() || !this.hasHuman(eng)) return false;
     eng.startHand();
@@ -459,17 +530,26 @@ class TableManager {
     // Record the just-finished hand for the table's history (in-memory, capped).
     if (eng.lastResult) recordHand(tableId, eng.lastResult);
     const humans = eng.occupiedSeats().filter((s) => !s.isBot);
-    // Persist every human's post-hand stack.
-    await Promise.all(
-      humans.map((s) =>
-        db.update(pokerSeats).set({ stack: s.stack }).where(and(eq(pokerSeats.tableId, tableId), eq(pokerSeats.userId, s.userId))),
-      ),
-    );
-    // Cash out + remove any human who asked to leave.
-    for (const s of humans.filter((x) => x.leaving)) {
-      await this.cashOut(s.userId, tableId, s.stack);
-      eng.removeSeat(s.seatIndex);
-    }
+    const leavers = humans.filter((s) => s.leaving);
+    // One transaction for ALL money writes: persist every staying human's
+    // post-hand stack, and for anyone leaving credit their balance + free their
+    // seat. Previously these were independent updates + per-leaver transactions,
+    // so a partial failure could strand a stack or double-credit a cash-out.
+    await db.transaction(async (tx) => {
+      for (const s of humans) {
+        if (s.leaving) {
+          // Cash the parked stack back to balance and remove the seat row. (No
+          // separate stack-update — the row is about to be deleted.)
+          await tx.update(users).set({ balance: sql`${users.balance} + ${s.stack}` }).where(eq(users.id, s.userId));
+          await tx.delete(pokerSeats).where(and(eq(pokerSeats.tableId, tableId), eq(pokerSeats.userId, s.userId)));
+        } else {
+          await tx.update(pokerSeats).set({ stack: s.stack }).where(and(eq(pokerSeats.tableId, tableId), eq(pokerSeats.userId, s.userId)));
+        }
+      }
+    });
+    // In-memory seat removals happen only AFTER the DB commit, so the engine can't
+    // drift from the database if the transaction above rolled back.
+    for (const s of leavers) eng.removeSeat(s.seatIndex);
     // Remove any bot that was taken off the table mid-hand (no cash-out — house chips).
     for (const s of eng.occupiedSeats().filter((x) => x.isBot && x.leaving)) {
       eng.removeSeat(s.seatIndex);

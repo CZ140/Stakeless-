@@ -91,6 +91,34 @@ describe('Poker — optional bots', () => {
     expect(human.status).toBe('folded'); // facing the BB, the timeout folds
   });
 
+  // Concurrency guard: a turn timer is armed with the engine's actionSeq. If the
+  // player acts before it fires, the timer's callback carries a now-stale token and
+  // must be a no-op — otherwise a just-in-time action and the firing timer could
+  // both resolve the same turn (e.g. auto-folding the player who just called).
+  it('ignores a stale turn timer after the player already acted', async () => {
+    const { a, id } = await seatWithBots([1]);
+    const eng = tableManager._engine(id)!;
+    expect(eng.actingIndex).toBe(0);
+    const staleSeq = eng.actionSeq; // token the human's turn timer was armed with
+    await tableManager.act(a.user.id, id, { type: 'call' }); // turn advances to the bot
+    expect(eng.actingIndex).toBe(1);
+    expect(eng.actionSeq).not.toBe(staleSeq);
+    const botStatusBefore = eng.occupiedSeats().find((s) => s.seatIndex === 1)!.status;
+
+    // The human's now-stale turn timer fires: it must not act on the bot's turn.
+    await tableManager.timeoutCurrentActor(id, staleSeq);
+    expect(eng.actingIndex).toBe(1); // unchanged — stale timer was a no-op
+    expect(eng.occupiedSeats().find((s) => s.seatIndex === 1)!.status).toBe(botStatusBefore);
+  });
+
+  it('ignores a stale bot timer (runBotAction returns false for an old token)', async () => {
+    const { a, id } = await seatWithBots([1]);
+    const eng = tableManager._engine(id)!;
+    const staleSeq = eng.actionSeq;
+    await tableManager.act(a.user.id, id, { type: 'call' }); // advance off the captured turn
+    expect(await tableManager.runBotAction(id, staleSeq)).toBe(false); // stale → no-op
+  });
+
   it('removes a bot mid-hand and ends the hand if it was heads-up', async () => {
     const { a, id } = await seatWithBots([1]);
     await tableManager.removeBot(a.user.id, id, 1);

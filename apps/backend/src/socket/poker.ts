@@ -55,12 +55,15 @@ export function attachPokerRealtime(io: Server): void {
     if (!eng || eng.actingIndex === null) return;
     const seat = eng.occupiedSeats().find((s) => s.seatIndex === eng.actingIndex);
     if (!seat) return;
+    // Capture the turn token now; the manager ignores the fired timer if the turn
+    // was already resolved (token advanced) by the time it runs under the lock.
+    const seq = eng.actionSeq;
     if (seat.isBot) {
       const delay = BOT_MIN_MS + Math.floor(Math.random() * (BOT_MAX_MS - BOT_MIN_MS));
       turnTimers.set(
         tableId,
         setTimeout(() => {
-          tableManager.runBotAction(tableId).catch(logTimerError('runBotAction', tableId));
+          tableManager.runBotAction(tableId, seq).catch(logTimerError('runBotAction', tableId));
         }, delay),
       );
     } else {
@@ -68,7 +71,7 @@ export function attachPokerRealtime(io: Server): void {
       turnTimers.set(
         tableId,
         setTimeout(() => {
-          tableManager.timeoutCurrentActor(tableId).catch(logTimerError('timeoutCurrentActor', tableId));
+          tableManager.timeoutCurrentActor(tableId, seq).catch(logTimerError('timeoutCurrentActor', tableId));
         }, POKER.TURN_MS),
       );
     }

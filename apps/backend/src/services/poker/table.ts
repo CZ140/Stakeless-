@@ -71,6 +71,10 @@ export class PokerTable {
   currentBet = 0;
   minRaise = 0;
   handNumber = 0;
+  // Monotonic turn token: bumped on every applied action and every new hand. The
+  // realtime layer captures it when arming a turn/bot timer; if it has advanced by
+  // the time the timer fires, the turn was already resolved and the timer is stale.
+  actionSeq = 0;
   lastResult: PokerHandResult | null = null;
   // Seats whose hole cards were revealed at the last showdown (for the public view).
   private shown = new Set<number>();
@@ -218,6 +222,7 @@ export class PokerTable {
     this.handNumber++;
     // First to act preflop = seat after the BB (UTG); heads-up that's the SB/button.
     this.actingIndex = this.advanceOrClose(bbIndex);
+    this.actionSeq++;
     return true;
   }
 
@@ -279,6 +284,7 @@ export class PokerTable {
         throw err('ILLEGAL_ACTION', 'Unknown action');
     }
     this.advance();
+    this.actionSeq++;
   }
 
   // Mark a seat as leaving and fold it out of the current hand. If it is their
