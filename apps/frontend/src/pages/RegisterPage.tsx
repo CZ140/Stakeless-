@@ -25,7 +25,7 @@ function PerksStrip() {
             <rect x="3" y="13" width="8" height="8" rx="1.5" /><rect x="13" y="13" width="8" height="8" rx="1.5" />
           </svg>
         </div>
-        <div className="pval">4 games</div>
+        <div className="pval">13 games</div>
         <div className="plab">Full library</div>
       </div>
     </div>

@@ -36,6 +36,7 @@ export type { SlotSymbolId, SlotSymbol, SlotGrid, SlotCell, SlotLineWin, SlotRes
 export {
   CRASH,
   crashMultiplierAt,
+  crashCurveAt,
   crashTimeToReachMs,
   crashPointFromUniform,
   crashCashoutWins,

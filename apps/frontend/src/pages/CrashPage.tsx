@@ -1,7 +1,7 @@
 import { useShallow } from 'zustand/react/shallow';
 import { useEffect, useRef, useState } from 'react';
 import gsap from 'gsap';
-import { crashMultiplierAt, crashTimeToReachMs } from '@gambling/shared';
+import { crashCurveAt, crashTimeToReachMs } from '@gambling/shared';
 import { AppShell } from '../components/vault/AppShell';
 import { BetPanel } from '../components/vault/BetPanel';
 import { useCrashStore } from '../stores/crashStore';
@@ -51,34 +51,74 @@ function smoothPath(pts: [number, number][]): string {
   return d;
 }
 
-// Curve chart in a 0–100 viewBox. Sampled from the shared multiplier curve so the
-// shape matches the server's settlement exactly. x spans a rolling ≥5s window, y
-// auto-zooms to keep the head in frame (camera follow); both freeze on settle.
+// Curve chart plotted from the continuous (un-floored) curve so it animates at a
+// smooth 60fps instead of stepping with the 0.01 readout.
+// Camera (visual only — round pacing / RTP untouched): the vertical frame uses
+// *additive* headroom — a constant amount of room above the head — rather than
+// proportional. So the head sits low early and climbs ever higher as the round
+// runs, while the exponential's curl fills in below it: the ascent visibly
+// steepens over time instead of holding one constant-looking slope. x leaves a
+// little headroom ahead of the head. Both axes freeze on settle.
+//
+// The viewBox tracks the board's real pixel size (1 unit = 1px) instead of a
+// fixed square stretched to fit — otherwise the 16:9 board squashes a square
+// coordinate space ~1.78× horizontally, distorting the curve and rendering the
+// round head as a flat ellipse.
 function CrashCurve({ mult, color }: { mult: number; color: string }) {
+  const svgRef = useRef<SVGSVGElement>(null);
+  const [size, setSize] = useState({ w: 880, h: 495 });
+  useEffect(() => {
+    const el = svgRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver((entries) => {
+      const r = entries[0]?.contentRect;
+      if (r && r.width > 0 && r.height > 0) setSize({ w: r.width, h: r.height });
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  const { w, h } = size;
+
   const tEnd = crashTimeToReachMs(mult);
-  const xMax = Math.max(tEnd, 5000);
-  const yMax = Math.max(mult * 1.1, 2);
+  // Head position. x leaves ~13% headroom ahead of the head (and travels right
+  // early via the 4500ms floor); y uses *additive* headroom so the head climbs
+  // ever higher as the round runs rather than sitting at a fixed height.
+  const xMax = Math.max(tEnd * 1.15, 4500);
+  const headX = (tEnd / xMax) * w;
+  const HEAD_ROOM = 0.7; // smaller → head climbs to the top sooner
+  const headFrac = (mult - 1) / (mult - 1 + HEAD_ROOM);
+  // Path shape: the curvature *grows with the multiplier*, so the line starts out
+  // ~straight (linear) while the multiplier is low and smoothly bends into an
+  // exponential as the round climbs. a → 0 makes the shape p (a straight line);
+  // larger a bows it flatter-early / steeper-at-the-head. a = ln(mult) is the true
+  // curve; the gain exaggerates it a touch and the cap stops very high multipliers
+  // from collapsing into an "L". Decorative — the head still sits at the real
+  // time/multiplier position; only the in-between arc is shaped.
+  const CURVE_GAIN = 1.5; // >1 reaches the exponential look sooner; 1 = the true curve
+  const a = Math.min(Math.log(mult) * CURVE_GAIN, 3.5);
+  const denom = Math.exp(a) - 1;
   const N = 56;
   const pts: [number, number][] = [];
   for (let i = 0; i <= N; i++) {
-    const t = (i / N) * tEnd;
-    const m = crashMultiplierAt(t);
-    const x = (t / xMax) * 100;
-    const y = 100 - ((m - 1) / (yMax - 1)) * 100;
+    const p = i / N;
+    const x = p * headX;
+    // shape(p): linear (p) when a≈0, increasingly exponential as a grows.
+    const shape = a < 1e-3 ? p : (Math.exp(a * p) - 1) / denom;
+    const y = h - shape * headFrac * h;
     pts.push([x, y]);
   }
   const head = pts[pts.length - 1]!;
   const line = smoothPath(pts);
-  const area = `${line} L${head[0].toFixed(2)} 100 L0 100 Z`;
+  const area = `${line} L${head[0].toFixed(2)} ${h.toFixed(2)} L0 ${h.toFixed(2)} Z`;
   return (
-    <svg className="crash-curve" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden>
+    <svg ref={svgRef} className="crash-curve" viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none" aria-hidden>
       <defs>
         <linearGradient id="crash-fill" x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%" stopColor={color} stopOpacity="0.28" />
           <stop offset="100%" stopColor={color} stopOpacity="0" />
         </linearGradient>
         <filter id="crash-glow" x="-50%" y="-50%" width="200%" height="200%">
-          <feGaussianBlur stdDeviation="1.1" result="b" />
+          <feGaussianBlur stdDeviation="3" result="b" />
           <feMerge>
             <feMergeNode in="b" />
             <feMergeNode in="SourceGraphic" />
@@ -90,14 +130,14 @@ function CrashCurve({ mult, color }: { mult: number; color: string }) {
         d={line}
         fill="none"
         stroke={color}
-        strokeWidth="1.6"
-        vectorEffect="non-scaling-stroke"
+        strokeWidth="2.5"
         strokeLinejoin="round"
+        strokeLinecap="round"
         filter="url(#crash-glow)"
       />
       {/* Glowing, pulsing head */}
-      <circle className="crash-head-halo" cx={head[0]} cy={head[1]} r="3.4" fill={color} opacity="0.3" />
-      <circle cx={head[0]} cy={head[1]} r="1.7" fill={color} vectorEffect="non-scaling-stroke" filter="url(#crash-glow)" />
+      <circle className="crash-head-halo" cx={head[0]} cy={head[1]} r="15" fill={color} opacity="0.3" />
+      <circle cx={head[0]} cy={head[1]} r="5.5" fill={color} filter="url(#crash-glow)" />
     </svg>
   );
 }
@@ -153,7 +193,9 @@ export function CrashPage() {
     const st = useCrashStore.getState();
     if (st.phase !== 'running') return;
     const elapsed = anchorRef.current.elapsedMs + (performance.now() - anchorRef.current.perf);
-    let m = crashMultiplierAt(elapsed);
+    // Continuous (un-floored) multiplier so the curve & number move every frame;
+    // the readout floors it to 2dp at display time.
+    let m = crashCurveAt(elapsed);
     // Hold the visual at the auto target while we wait for the server's crash:cashout
     // confirmation, so the curve never overshoots a target that's about to fire.
     if (st.autoEnabled && m >= st.autoValue) m = st.autoValue;
@@ -165,7 +207,7 @@ export function CrashPage() {
 
   function beginRound(sessionId: number, startedAt: number, serverNow: number) {
     anchorRef.current = { elapsedMs: Math.max(0, serverNow - startedAt), perf: performance.now() };
-    setMult(crashMultiplierAt(anchorRef.current.elapsedMs));
+    setMult(crashCurveAt(anchorRef.current.elapsedMs));
     startRunning(sessionId);
     stopLoop();
     stopTone(0);
@@ -277,6 +319,9 @@ export function CrashPage() {
   }
 
   const running = phase === 'running';
+  // mult is the continuous curve value (for smooth 60fps motion); floor to 2dp for
+  // every numeric readout so the displayed multiplier matches the server's.
+  const displayMult = Math.floor(mult * 100) / 100;
   const curveColor =
     phase === 'busted' ? 'var(--loss)' : phase === 'cashed' ? 'var(--win)' : 'var(--accent)';
   const multColor = running ? 'var(--text)' : curveColor;
@@ -294,7 +339,7 @@ export function CrashPage() {
   let primaryLabel = 'Bet';
   let onPrimary: () => void = () => void handleStart();
   if (running) {
-    primaryLabel = `Cash out · ${Math.floor(betAmount * mult).toLocaleString()}`;
+    primaryLabel = `Cash out · ${Math.floor(betAmount * displayMult).toLocaleString()}`;
     onPrimary = () => void handleCashout();
   }
 
@@ -322,7 +367,7 @@ export function CrashPage() {
             <div className={`crash-board ${phase}`} ref={boardRef}>
               <CrashCurve mult={mult} color={curveColor} />
               <div className="crash-readout">
-                <div className="crash-mult" ref={multRef} style={{ color: multColor }}>{mult.toFixed(2)}×</div>
+                <div className="crash-mult" ref={multRef} style={{ color: multColor }}>{displayMult.toFixed(2)}×</div>
                 {caption && <div className="crash-caption" style={{ color: curveColor }}>{caption}</div>}
               </div>
             </div>
@@ -341,8 +386,8 @@ export function CrashPage() {
           onAmountChange={setBetAmount}
           balance={balance}
           amountLocked={running}
-          multiplier={running ? mult.toFixed(2) : undefined}
-          profitOnWin={running ? Math.floor(betAmount * mult) - betAmount : undefined}
+          multiplier={running ? displayMult.toFixed(2) : undefined}
+          profitOnWin={running ? Math.floor(betAmount * displayMult) - betAmount : undefined}
           primaryLabel={primaryLabel}
           onPrimary={onPrimary}
         >

@@ -29,8 +29,18 @@ export const CRASH = {
 // never below 1.00. Backend and frontend share this so the curve agrees exactly.
 export function crashMultiplierAt(elapsedMs: number): number {
   if (elapsedMs <= 0) return 1.0;
-  const m = Math.exp(CRASH.GROWTH * (elapsedMs / 1000));
-  return Math.max(1, Math.floor(m * 100) / 100);
+  return Math.max(1, Math.floor(crashCurveAt(elapsedMs) * 100) / 100);
+}
+
+// Raw, *un-floored* multiplier at `elapsedMs` — the smooth underlying curve.
+// crashMultiplierAt floors this to 2dp for the readout, but plotting from the
+// floored value turns the curve into a staircase (consecutive samples repeat,
+// then jump), which a smoothing spline renders as a sawtooth — very visible
+// early on when the total rise spans only a handful of 0.01 steps. Plot from
+// this continuous value instead; the floored value drives only the number.
+export function crashCurveAt(elapsedMs: number): number {
+  if (elapsedMs <= 0) return 1.0;
+  return Math.exp(CRASH.GROWTH * (elapsedMs / 1000));
 }
 
 // Inverse of crashMultiplierAt: ms after start at which the curve first reaches
