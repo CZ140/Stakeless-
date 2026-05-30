@@ -68,6 +68,38 @@ describe('PLINKO_MULTIPLIERS table', () => {
     }
   });
 
+  // Guards against the calibration bug where hand-typed multiplier tables were
+  // never checked against the actual Binomial(rows, 0.5) landing distribution.
+  // Some tables (notably every `expert` table) paid out 180–264% RTP — wildly
+  // +EV for the player. Each bucket k is reached with probability C(rows,k)/2^rows,
+  // so the true RTP is the binomial-weighted sum of multipliers.
+  describe('binomial-weighted RTP is ~99% for every table (no +EV)', () => {
+    // log of C(n,k) via log-factorials, then P = exp(logC - n*ln2) for numeric stability.
+    function binomProb(n: number, k: number): number {
+      let logC = 0;
+      for (let i = 0; i < k; i++) logC += Math.log(n - i) - Math.log(i + 1);
+      return Math.exp(logC - n * Math.log(2));
+    }
+
+    for (const risk of riskLevels) {
+      for (let rows = 8; rows <= 16; rows++) {
+        it(`${risk} / ${rows} rows lands in [98.5%, 99.5%] and is never +EV`, () => {
+          const buckets = PLINKO_MULTIPLIERS[risk][rows]!;
+          let rtp = 0;
+          let psum = 0;
+          for (let k = 0; k <= rows; k++) {
+            const p = binomProb(rows, k);
+            psum += p;
+            rtp += p * buckets[k]!;
+          }
+          expect(psum).toBeCloseTo(1, 6); // probabilities sum to 1
+          expect(rtp).toBeGreaterThanOrEqual(0.985);
+          expect(rtp).toBeLessThanOrEqual(0.995); // house edge always ≥ 0.5% → never player-favourable
+        });
+      }
+    }
+  });
+
   it('Low 8-row table matches reference values', () => {
     expect(PLINKO_MULTIPLIERS.low[8]).toEqual([5.6, 2.1, 1.1, 1.0, 0.5, 1.0, 1.1, 2.1, 5.6]);
   });
